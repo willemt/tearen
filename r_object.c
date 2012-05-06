@@ -26,26 +26,30 @@
  *
  */
 
-//#include "r_local.h"
+#include <stdio.h>
 #include <stdbool.h>
+#include <assert.h>
 #include "tea_vec.h"
 #include "r_draw.h"
-//#include "r_opengl.h"
 #include <GL/gl.h>
 //#include <opengl/OpenGL.h>
 #include "linked_list_hashmap.h"
 #include "fixed_arraylist.h"
-//#include "linked_list_hashmap.h"
-//#include "fixed_arraylist.h"
 
+/**
+ * generic type structure for render objects.
+ * All objects sub-class this struct via typedata. */
 typedef struct
 {
     vec2_t org;
+    /*  subclass type */
     int type;
     int id;
     void *typedata;
 } __obj_t;
 
+/**
+ * Square object */
 typedef struct
 {
     int media;
@@ -62,9 +66,27 @@ typedef struct
     int vbo_slot;
 } __rect_t;
 
+typedef struct
+{
+    int media;
+    int w, h;
+    /*  other part of bone */
+    vec2_t dst;
+    int vbo_slot;
+} __bone_t;
+
+typedef struct
+{
+    int vbo;
+} __canvas_t;
+
+/*----------------------------------------------------------------------------*/
+
 #define in(x) ((__obj_t*)x->in)
 #define square(x) ((__square_t*)in(x)->typedata)
 #define rect(x) ((__rect_t*)in(x)->typedata)
+#define bone(x) ((__bone_t*)in(x)->typedata)
+#define canvas(x) ((__canvas_t*)in(x)->typedata)
 
 /** default size of each VBO */
 #define VBO_ELEM_SIZE 1000
@@ -73,10 +95,14 @@ typedef struct
 /** Internal list of objects */
 static arraylistf_t *__robj_list = NULL;
 
-/** Internal list of VBOs by texture */
-static hashmap_t *__vbosByTexture = NULL;
+/** Internal list of VBOs by texture
+ * This is where we want to batch objects by their texture ID
+ */
+static hashmap_t *__vbosByTex = NULL;
 
 /*----------------------------------------------------------------------------*/
+/**
+ * Set verts with the texture coordinates for this media_id */
 static void __media_texturecoords_2_gltexturecoords(
     const int media_id,
     ren_vertex_tc_t verts[4]
@@ -84,7 +110,7 @@ static void __media_texturecoords_2_gltexturecoords(
 {
     vec2_t begin, end;
 
-#if 1
+#if 0
     ren_media_get_texturecoords(media_id, begin, end);
 #if 0
     vec2Set(verts[0].tex, begin[0], begin[1]);
@@ -114,17 +140,20 @@ static int __get_vbo_from_texture(
 {
     unsigned long vbo;
 
-    vbo =
-        (unsigned long) (void *) hashmap_get(__vbosByTexture, (void *) texture);
+    assert(0 < texture);
+
+    vbo = (unsigned long) (void *) hashmap_get(__vbosByTex, (void *) texture);
 
     if (0 == vbo)
     {
         vbo = ren_vbom_init(VBO_ELEM_SIZE);
-        hashmap_put(__vbosByTexture, (void *) texture, (void *) vbo);
+        hashmap_put(__vbosByTex, (void *) texture, (void *) vbo);
     }
 
     return vbo;
 }
+
+/*----------------------------------------------------------------------------*/
 
 /**
  * @return VBO ID that object is on */
@@ -230,7 +259,7 @@ int ren_obj_release(
 
 /**
  * Release object and set ptr to NULL */
-int ren_obj_release_unitialise(
+int ren_obj_release_uninitialise(
     ren_object_t ** rob
 )
 {
@@ -243,6 +272,8 @@ int ren_obj_release_unitialise(
     *rob = NULL;
     return ret;
 }
+
+/*----------------------------------------------------------------------------*/
 
 static void __manage_vboslot_with_new_textures(
     /*  vbo item slot */
@@ -287,6 +318,8 @@ static void __manage_vboslot_with_new_textures(
     }
 }
 
+/*----------------------------------------------------------------------------*/
+
 /**
  * Set the current media ID of this object.
  * Used for texturing the object
@@ -298,8 +331,8 @@ int ren_obj_set_media(
 {
 //    void *vbo;
 
-    tea_precond(rob);
-    tea_precond(rob->in);
+    assert(rob);
+    assert(rob->in);
 
     switch (in(rob)->type)
     {
@@ -332,8 +365,8 @@ int ren_obj_get_media(
     ren_object_t * rob
 )
 {
-    tea_precond(rob);
-    tea_precond(rob->in);
+    assert(rob);
+    assert(rob->in);
     switch (in(rob)->type)
     {
     case RENT_SQUARE:
@@ -356,8 +389,8 @@ int ren_obj_set_rot_org(
     vec2_t rot_org
 )
 {
-    tea_precond(rob);
-    tea_precond(rob->in);
+    assert(rob);
+    assert(rob->in);
     switch (in(rob)->type)
     {
     case RENT_SQUARE:
@@ -381,8 +414,8 @@ int ren_obj_set_zrot(
     float zrot
 )
 {
-    tea_precond(rob);
-    tea_precond(rob->in);
+    assert(rob);
+    assert(rob->in);
     switch (in(rob)->type)
     {
     case RENT_SQUARE:
@@ -403,8 +436,8 @@ int ren_obj_get_w(
     ren_object_t * rob
 )
 {
-    tea_precond(rob);
-    tea_precond(rob->in);
+    assert(rob);
+    assert(rob->in);
     switch (in(rob)->type)
     {
     case RENT_SQUARE:
@@ -426,8 +459,8 @@ int ren_obj_get_h(
     ren_object_t * rob
 )
 {
-    tea_precond(rob);
-    tea_precond(rob->in);
+    assert(rob);
+    assert(rob->in);
     switch (in(rob)->type)
     {
     case RENT_SQUARE:
@@ -452,8 +485,8 @@ int ren_obj_set_org(
     vec2_t org
 )
 {
-    tea_precond(rob);
-    tea_precond(rob->in);
+    assert(rob);
+    assert(rob->in);
     switch (in(rob)->type)
     {
     case RENT_SQUARE:
@@ -475,9 +508,8 @@ int ren_obj_set_org(
             vbo_slot = square(rob)->vbo_slot;
 
 #if 0
-            printf("%f,%f %d %d vbo:%d vslot:%d %lx\n", org[0], org[1],
-                   media_id, ren_media_get_texture(media_id), vbo, vbo_slot,
-                   rob);
+            printf("%f,%f %d %d vbo:%d vslot:%d w:%d\n", org[0], org[1],
+                   media_id, ren_media_get_texture(media_id), vbo, vbo_slot, w);
 #endif
 
             vec3Set(verts[0].pos, org[0], org[1], 0);
@@ -506,8 +538,8 @@ int ren_obj_set_org_from_xy(
     const float y
 )
 {
-    tea_precond(rob);
-    tea_precond(rob->in);
+    assert(rob);
+    assert(rob->in);
     switch (in(rob)->type)
     {
     case RENT_SQUARE:
@@ -535,8 +567,8 @@ int ren_obj_set_w(
     int w
 )
 {
-    tea_precond(rob);
-    tea_precond(rob->in);
+    assert(rob);
+    assert(rob->in);
     switch (in(rob)->type)
     {
     case RENT_SQUARE_CENTER:
@@ -562,8 +594,8 @@ int ren_obj_set_h(
     int h
 )
 {
-    tea_precond(rob);
-    tea_precond(rob->in);
+    assert(rob);
+    assert(rob->in);
     switch (in(rob)->type)
     {
     case RENT_SQUARE_CENTER:
@@ -581,6 +613,30 @@ int ren_obj_set_h(
 
     return 1;
 }
+
+/**
+ * Set current object as parent */
+void ren_obj_set_parent(
+    ren_object_t * rob,
+    ren_object_t * par
+)
+{
+    ren_obj_add_child(par, rob);
+}
+
+/*----------------------------------------------------------------------------*/
+
+/**
+ * Set destination org of end of bone */
+void ren_bone_set_dst(
+    ren_object_t * rob,
+    vec2_t dst
+)
+{
+
+}
+
+/*----------------------------------------------------------------------------*/
 
 #if 0
 static void __mod(
@@ -654,52 +710,34 @@ ren_object_t *ren_obj_init(
 {
     ren_object_t *rob;
 
-    if (!__vbosByTexture)
+    /*  initialise vbo -> texture hashmap */
+    if (!__vbosByTex)
     {
-        __vbosByTexture = hashmap_new(__ulong_hash, __ulong_compare);
+        __vbosByTex = hashmap_new(__ulong_hash, __ulong_compare);
     }
 
+    /*  initialise robject list */
     if (!__robj_list)
     {
         __robj_list = arraylistf_new();
     }
 
-
+    /*  robject initialisations */
     rob = calloc(1, sizeof(ren_object_t));
     rob->in = calloc(1, sizeof(__obj_t));
     in(rob)->id = arraylistf_add(__robj_list, rob);
     in(rob)->type = type;
-//    printf("CREATING ROB: %d\n", in(rob)->id);
 
+    /*  sub-class initialisations */
     switch (type)
     {
     case RENT_SQUARE:
     case RENT_SQUARE_CENTER:
         in(rob)->typedata = calloc(1, sizeof(__square_t));
         break;
-#if 0
-    case RENT_RECT:
-        in(rob)->typedata = calloc(1, sizeof(__rect_t));
+    case RENT_CANVAS:
+        in(rob)->typedata = calloc(1, sizeof(__canvas_t));
         break;
-    case RENT_POSTPIXELS:
-        break;
-    case RENT_TEXT:
-        break;
-    case RENT_TEXT_SHADOWED:
-        break;
-    case RENT_SKELETON:
-        break;
-    case RENT_LIGHT:
-        break;
-    case RENT_CALLBACK:
-        break;
-    case RENT_QUAD:
-        break;
-    case RENT_BEAM:
-        break;
-    case RENT_ARCHIVE:
-        break;
-#endif
     default:
         assert(false);
         break;
@@ -728,11 +766,29 @@ int ren_obj_init_ptr(
 }
 
 /*----------------------------------------------------------------------------*/
+void ren_obj_add_child(
+    ren_object_t * rob,
+    ren_object_t * child
+)
+{
+    canvas(rob)->vbo = __ren_obj_get_vbo(child);
+}
+
+void ren_obj_remove_child(
+    ren_object_t * rob,
+    ren_object_t * child
+)
+{
+    assert(false);
+}
+
+/*----------------------------------------------------------------------------*/
 static void __rentity_from_obj(
     ren_entity_t * rent,
     ren_object_t * rob
 )
 {
+#if 0
     ren_rent_clean(rent);
     rent->type = in(rob)->type;
     switch (in(rob)->type)
@@ -764,7 +820,7 @@ static void __rentity_from_obj(
         assert(false);
         break;
     }
-
+#endif
 }
 
 /**
@@ -775,12 +831,32 @@ int ren_obj_draw(
     ren_object_t * rob
 )
 {
-    assert(false);
-
-    ren_entity_t rent;
-
-    __rentity_from_obj(&rent, rob);
+//    assert(false);
+//    ren_entity_t rent;
+//    __rentity_from_obj(&rent, rob);
 //    ren_rent_draw(&rent);
+
+    switch (in(rob)->type)
+    {
+    case RENT_CANVAS:
+#if 1
+        glEnable(GL_TEXTURE_2D);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+        glBindTexture(GL_TEXTURE_2D, 1);
+#endif
+
+//        glColor3f(1.0, 1.0, 0.0);
+
+        ren_vbom_draw_all(canvas(rob)->vbo);
+
+        glBindTexture(GL_TEXTURE_2D, 0);
+        break;
+    default:
+        assert(0);
+    }
+
     return 1;
 }
 
@@ -825,7 +901,6 @@ static void __draw_vbo_from_texture(
     ren_vbom_draw_all(vbo);
 
     glBindTexture(GL_TEXTURE_2D, 0);
-
 //    printf("drawing vbo:%d\n", vbo);
 }
 
@@ -849,11 +924,11 @@ void ren_objs_draw(
 
 //    tea_iter_t *iter;
 
-    if (__vbosByTexture)
+    if (__vbosByTex)
     {
 #if 0
         tea_iter_forall_udata(hashmap_iterKeys
-                              (__vbosByTexture),
+                              (__vbosByTex),
                               (void *) __draw_vbo_from_texture, NULL);
 #endif
     }

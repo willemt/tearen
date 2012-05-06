@@ -19,6 +19,7 @@
 //#include "r_local.h"
 
 #include <stdio.h>
+#include <assert.h>
 #include <stdbool.h>
 #include <string.h>
 #include "tea_vec.h"
@@ -59,10 +60,20 @@ void ren_vbo_item_set_vertices(
     const int nverts
 )
 {
+    int size;
+
+    size = sizeof(ren_vertex_tc_t) * nverts;
+
+    /*  set context to this vbo's buffer */
     glBindBufferARB(GL_ARRAY_BUFFER_ARB, vbo);
-    glBufferSubDataARB(GL_ARRAY_BUFFER_ARB,
-                       item_idx * sizeof(ren_vertex_tc_t) * nverts,
-                       sizeof(ren_vertex_tc_t) * nverts, verts);
+
+    /*  memcpy to subdata of buffer */
+    glBufferSubDataARB(GL_ARRAY_BUFFER_ARB,     /*  buffer type */
+                       item_idx * size, /*  memory location */
+                       size,    /*  size of data */
+                       verts);  /*  data */
+
+    /*  reset current context */
     glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
 }
 
@@ -73,15 +84,19 @@ void ren_vbo_draw(
 )
 {
     /* bind VBOs for ren_vertex_tc_t array and index array */
+    /*  set context to this vbo's buffer */
     glBindBufferARB(GL_ARRAY_BUFFER_ARB, vbo);  // for vertex coordinates
 //    glBindBufferARB(GL_ARRAY_BUFFER_ARB, vbo_colours);
 //    glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, vboId2); // for indices
 
     /* do same as vertex array except pointer */
-    glEnableClientState(GL_VERTEX_ARRAY);       // activate vertex coords array
+    /*  activate vertex coords array */
+    glEnableClientState(GL_VERTEX_ARRAY);
+    /*  activate texture coords array */
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 //    glEnableClientState(GL_COLOR_ARRAY);
 
+    /*  set pointer */
     glTexCoordPointer(2, GL_FLOAT, sizeof(ren_vertex_tc_t), BUFFER_OFFSET(12));
     glVertexPointer(3, GL_FLOAT, sizeof(ren_vertex_tc_t), 0);
 //  glTexCoordPointer(2, GL_FLOAT, sizeof(ren_vertex_tc_t), BUFFER_OFFSET(12));

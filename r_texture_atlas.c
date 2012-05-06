@@ -16,7 +16,9 @@
  * =====================================================================================
  */
 
+#include <stdio.h>
 #include <stdbool.h>
+#include <assert.h>
 #include "tea_vec.h"
 #include "r_draw.h"
 #include "linked_list_hashmap.h"
@@ -86,6 +88,10 @@ static long __ulong_compare(
     return i1 - i2;
 }
 
+/**
+ * @param width The size of this atlas
+ * @param write_pixels_to_texture Callback for writing pixels to the atlas
+ * @param create_texture_cb Callback for creating a new texture */
 int ren_texture_atlas_init(
     int width,
     void (*write_pixels_to_texture) (const void *pixels,
@@ -119,6 +125,8 @@ int ren_texture_atlas_init(
     }
     return arraylistf_add(__atlases, at);
 }
+
+/*----------------------------------------------------------------------------*/
 
 #if 0
 static void __print(
@@ -165,18 +173,20 @@ static texture_t *__insert(
     }
     else
     {
-        /*  doesn't fit */
-        if (tex->rect.w < w || tex->rect.h < h || tex->id != 0)
-        {
-            return NULL;
-        }
         /*  fits perfectly */
-        else if (tex->rect.w == w && tex->rect.h == h)
+        if (tex->rect.w == w && tex->rect.h == h)
         {
             tex->id = id;
             assert(!tex->kids[0]);
             assert(!tex->kids[1]);
             return tex;
+        }
+        /*  doesn't fit */
+        else if (tex->rect.w < w || tex->rect.h < h || tex->id != 0)
+        {
+//            printf("doesn't fit, %d %d %d %d\n", tex->rect.w, w, tex->rect.h, h);
+//            assert(0);
+            return NULL;
         }
         else
         {
@@ -214,15 +224,14 @@ static texture_t *__insert(
             return __insert(tex->kids[0], w, h, id);
         }
     }
-
 }
 
-/*
- * @return tex id
+/**
+ * Write pixels to atlas, return the 'virtual texture id'
+ * @return 'virtual texture id'
  */
 int ren_texture_atlas_push_pixels(
     int id,
-//    const unsigned char pixel_data[],
     const void *pixel_data,
     int w,
     int h
@@ -239,10 +248,9 @@ int ren_texture_atlas_push_pixels(
     assert(at);
 
     new_id = at->ntextures + 1;
-    tex = __insert(at->root, w, h, new_id);
 //      __print(at->root,0);
 
-    if (!tex)
+    if (!(tex = __insert(at->root, w, h, new_id)))
     {
 //        printf("(%d, %d) \n", w, h);
 //        printf("(%d, %d) \n", at->root->rect.w, at->root->rect.h);
@@ -264,13 +272,14 @@ int ren_texture_atlas_push_pixels(
     return new_id;
 }
 
+/**
+ * Remove texture from atlas using filename
+ */
 void ren_texture_atlas_remove_file(
     int id,
     const char *fname
 )
 {
-//        texture_t *tex;
-
     atlas_t *at;
 
     at = __get_atlas_from_id(id);
@@ -278,17 +287,21 @@ void ren_texture_atlas_remove_file(
     assert(false);
 }
 
+/**
+ * Remove texture based off texture ID */
 void ren_texture_atlas_remove_texid(
     int id,
-    const char *fname
+    const unsigned long texid
 )
 {
     assert(false);
 }
 
+/**
+ * @return true if atlas contains texture id, otherwise false */
 int ren_texture_atlas_contains_texid(
     int id,
-    unsigned long texid
+    const unsigned long texid
 )
 {
     atlas_t *at;
@@ -299,12 +312,14 @@ int ren_texture_atlas_contains_texid(
     return NULL != hashmap_get(at->textures, (void *) texid);
 }
 
+/**
+ * Get coordiantes using texture id
+ */
 int ren_texture_atlas_get_coords_from_texid(
     const int id,
     const unsigned long texid,
     vec2_t begin,
     vec2_t end
-//      rect_t *rect
 )
 {
     atlas_t *at;
@@ -327,7 +342,9 @@ int ren_texture_atlas_get_coords_from_texid(
     return 0;
 }
 
-int ren_texture_atlas_get_glimage(
+/**
+ * @return texture id */
+int ren_texture_atlas_get_texture(
     const int id
 )
 {
@@ -338,6 +355,8 @@ int ren_texture_atlas_get_glimage(
     return at->glimage;
 }
 
+/**
+ * @return number of textures */
 int ren_texture_atlas_get_ntextures(
     const int id
 )

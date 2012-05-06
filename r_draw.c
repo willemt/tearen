@@ -21,7 +21,14 @@
     http://www.libsdl.org/cgi/docwiki.cgi/SDL_5fListModes
  */
 
+#include <stdlib.h>
 #include <GL/glew.h>
+#ifdef __APPLE__
+#include <GLUT/glut.h>
+#else
+#include <GL/glut.h>
+#endif
+#include <assert.h>
 //#include "r_local.h"
 #include "tea_vec.h"
 #include <stdbool.h>
@@ -116,12 +123,18 @@ static int __initOpenGL(
 
 //      __initShaders();
 
+#if 0
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
     glClearColor(0.4f, 0.4f, 0.4f, 0.0f);
+#endif
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
 #if ACCUM_BUFFER
     glClear(GL_ACCUM_BUFFER_BIT);
@@ -195,7 +208,8 @@ static void __vid_info(
 static int __initSDL_start(
     const bool opengl,
     const int w,
-    const int h
+    const int h,
+    const char *name
 )
 {
     int video_flags = 0;
@@ -213,9 +227,10 @@ static int __initSDL_start(
     printf("OpenGL version: %s\n", glGetString(GL_VERSION));
     printf("OpenGL vendor: %s\n", glGetString(GL_VENDOR));
     printf("OpenGL renderer: %s\n", glGetString(GL_RENDERER));
+    printf("setting size: %d %d\n", w, h);
 
 //      SDL_WM_SetIcon( IMG_Load("tea.png"), NULL );
-//    SDL_WM_SetCaption("TEAREN", "TEAREN");
+    SDL_WM_SetCaption(name, name);
     __vid_info();
 
     if (opengl)
@@ -229,7 +244,6 @@ static int __initSDL_start(
     }
 
     in(rSys)->screen = SDL_SetVideoMode(w, h, 32, video_flags);
-//      in(rSys)->screen = SDL_SetVideoMode(rSys->w, rSys->h, 32, video_flags);
 
     return 0;
 }
@@ -286,16 +300,19 @@ void ren_draw_disable(
 
 /*------------------------------------------------------- ACTUAL DRAW METHODS */
 
+#if 0
 /**
  * This somehow fixes a bug. */
 static void __fakefix(
 )
 {
+#if 0
     ren_entity_t rent;
 
     memset(&rent, 0, sizeof(ren_entity_t));
     rent.rotAngle[2] = 10;
     ren_rent_draw(&rent);
+#endif
 }
 
 /** draw everything to the screen */
@@ -314,84 +331,53 @@ void ren_draw_step(
 
     __fakefix();
 
-    rOGLResetColor();
+//    rOGLResetColor();
 
-    ren_rents_draw();
-}
-
-
-#if 0
-static void __grid_draw(
-)
-{
-    int i;
-
-#define SEGMENTS 20
-
-    glColor4f(1, 1, 1, 1);
-
-    rOGLDrawLine(rSys->x + 1, rSys->y + 1, rSys->x + rSys->w - 1, rSys->y + 1,
-                 0, 0);
-    rOGLDrawLine(rSys->x + rSys->w - 1, rSys->y + 1, rSys->x + rSys->w - 1,
-                 rSys->y + rSys->h - 1, 0, 0);
-    rOGLDrawLine(rSys->x + rSys->w - 1, rSys->y + rSys->h - 1, rSys->x + 1,
-                 rSys->y + rSys->h - 1, 0, 0);
-    rOGLDrawLine(rSys->x + 1, rSys->y + rSys->h - 1, rSys->x + 1, rSys->y + 1,
-                 0, 0);
-
-    vec2_t end = { rSys->x + rSys->w, rSys->y + rSys->h };
-    vec2_t org = { rSys->x, rSys->y };
-
-    vec2_t sub;
-
-    vec2Subtract(end, org, sub);
-
-    float dist = vec2Normalize(sub);
-
-    for (i = 0; i < SEGMENTS - 1; i++)
-    {
-        vec2_t v1, v2;
-
-        if (i % 2)
-            continue;
-        vec2MA(org, (float) i / SEGMENTS * dist, sub, v1);
-        vec2MA(org, (float) (i + 1) / SEGMENTS * dist, sub, v2);
-        rOGLDrawLine2(v1, v2, 0, 0);    // left down
-    }
-
-
-    org[X] += end[X];
-    end[X] -= org[X];
-//      vec2Set(org, rSys->x+rSys->w, rSys->y);
-//      vec2Set(end, rSys->x, rSys->y+rSys->h);
-
-    vec2Subtract(end, org, sub);
-    dist = vec2Normalize(sub);
-
-    for (i = 0; i < SEGMENTS - 1; i++)
-    {
-        vec2_t v1, v2;
-
-        if (i % 2)
-            continue;
-        vec2MA(org, (float) i / SEGMENTS * dist, sub, v1);
-        vec2MA(org, (float) (i + 1) / SEGMENTS * dist, sub, v2);
-        rOGLDrawLine2(v1, v2, 0, 0);    // left down
-    }
+    ren_objs_draw();
 }
 #endif
 
-void ren_draw_begin(
+const float vertexPositions[] = {
+    -1.0f, 1.0f, 0.0f, 1.0f,
+    0.75f, 0.75f, 0.0f, 1.0f,
+    0.75f, -0.75f, 0.0f, 1.0f,
+    -0.75f, -0.75f, 0.0f, 1.0f,
+};
+
+int positionBufferObject;
+
+void InitializeVertexBuffer(
 )
 {
-//      static int list = -1;
+    glGenBuffers(1, &positionBufferObject);
 
-#if 1
-/*	if (-1 == list) {
-		list = glGenLists(1);
+    glBindBuffer(GL_ARRAY_BUFFER, positionBufferObject);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertexPositions), vertexPositions,
+                 GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
 
-		glNewList(list,GL_COMPILE);
+/** zero the marker */
+void ren_frame_begin(
+    void
+)
+{
+/*
+	glViewport (0,0,in(rSys)->w,in(rSys)->h);
+	glMatrixMode (GL_PROJECTION);
+	glLoadIdentity ();	
+	glOrtho(0.0f, in(rSys)->w,in(rSys)->h, 0.0f, -100, 100);
+
+	glMatrixMode (GL_MODELVIEW);	
+	glLoadIdentity ();					
 */
+
+#if 0
+    glClearColor(1.0f, 0.0f, 1.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+#endif
+
+#if 0
     /* Set The Viewport To The Top Left.
      * It Will Take Up Half The Screen in(rSys)->w And in(rSys)->h */
 //    glViewport(rSys->x, rSys->y, rSys->w, rSys->h);
@@ -404,95 +390,70 @@ void ren_draw_begin(
 //    glOrtho(0.0f, rSys->w, rSys->h, 0.0f, -100, 100);
     glOrtho(0.0f, in(rSys)->w, in(rSys)->h, 0.0f, -100, 100);
 //    glScalef(rSys->scale, rSys->scale, 1);
-    glScalef(1.0f, 1.0f, 1.0f);
+//    glScalef(1.0f, 1.0f, 1.0f);
+#endif
 
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
+//    glMatrixMode(GL_MODELVIEW);
+//    glLoadIdentity();
+
+    glDisable(GL_DEPTH_TEST);
+    glClearColor(0.2f, 0.2f, 0.2f, 0.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+//    glUseProgram(theProgram);
 
 #if 0
-    if (rSys->zoom != 1)
-    {
-        glScalef(rSys->zoom, rSys->zoom, 1);
-    }
+    glEnable(GL_TEXTURE_2D);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+    glBindTexture(GL_TEXTURE_2D, 1);
+
+
+
+    glBindBuffer(GL_ARRAY_BUFFER, positionBufferObject);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0);
+
+    glDrawArrays(GL_QUADS, 0, 4);
+
+    glDisableVertexAttribArray(0);
 #endif
 
-#endif
-/*		glEndList();
-	}
-
-	glCallList(list);
-*/
-
-//      glEnable(GL_SCISSOR_TEST);
-//      glScissor(rSys->x, rSys->y, rSys->w, rSys->h);
-
-/*
-	glPushMatrix ();
-	glEnable(GL_SCISSOR_TEST);
-	glScissor(rSys->x, in(rSys)->h-rSys->h-rSys->y, rSys->w, rSys->h);
-	glTranslatef(rSys->x,rSys->h-in(rSys)->h+rSys->y, 0);  // Position 
-// 	glTranslatef(rSys->x-(rSys->scale-1)*512,rSys->y-(rSys->scale-1)*rSys->h, -50);  // Position 
-	glScalef(rSys->scale,rSys->scale,1);
-//	glTranslatef(128,128, -50);  // Position 
-*/
-
-//      rSky();
-//      if (localclient.cameraTarget) vec2Copy(localclient.cameraTarget->org_terp, camera);
-//      if (session.maploaded) rTilesDrawMain( localclient.scrOrg[0], localclient.scrOrg[1], camera, false );
+//    glUseProgram(0);
 }
 
-/** zero the marker */
-void ren_beginFrame(
+void ren_frame_end(
     void
 )
 {
-    ren_rents_beginFrame();
-/*
-	glViewport (0,0,in(rSys)->w,in(rSys)->h);
-	glMatrixMode (GL_PROJECTION);
-	glLoadIdentity ();	
-	glOrtho(0.0f, in(rSys)->w,in(rSys)->h, 0.0f, -100, 100);
-
-	glMatrixMode (GL_MODELVIEW);	
-	glLoadIdentity ();					
-*/
-
-#if ACCUM_BUFFER
-    glClearAccum(0, 0, 0, 1);
-#endif
-    glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT); //|GL_ACCUM_BUFFER_BIT);
-
-#if 0
-    if (in(rSys)->testgrid)
-    {
-        __grid_draw();
-    }
-#endif
-}
-
-void ren_endFrame(
-    void
-)
-{
-#if ACCUM_BUFFER
-    float val = 0.95;
-
-    glAccum(GL_MULT, val);
-    glAccum(GL_ACCUM, 1.0 - val);
-    glAccum(GL_RETURN, 1.0);
-#endif
-
-    //glFlush();
+//    glFlush();
     SDL_GL_SwapBuffers();
+//    glutSwapBuffers();
+}
+
+void ren_set_screensize(
+    int w,
+    int h
+)
+{
+    in(rSys)->w = w;
+    in(rSys)->h = h;
 }
 
 /** init the renderer sub system */
 void ren_draw_init(
+    char *name
 )
 {
     bool opengl = true;
 
-    __initSDL_start(opengl, in(rSys)->w, in(rSys)->h);
+    rSys = calloc(1, sizeof(ren_renderer_t));
+    rSys->in = calloc(1, sizeof(__ren_renderer_in_t));
+    in(rSys)->w = 600;
+    in(rSys)->h = 600;
+
+    __initSDL_start(opengl, in(rSys)->w, in(rSys)->h, name);
 
     if (opengl)
     {
@@ -502,8 +463,15 @@ void ren_draw_init(
     __initSDL_end();
 
     ren_medias_init();
-    ren_rents_init();
-    ren_effects_init();
+//    ren_rents_init();
+
+
+#if 0
+    InitializeVertexBuffer();
+    glBindBuffer(GL_ARRAY_BUFFER, positionBufferObject);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0);
+#endif
 }
 
 /*--------------------------------------------------------------79-characters-*/

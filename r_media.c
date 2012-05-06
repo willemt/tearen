@@ -10,16 +10,24 @@
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 */
 
+//#include <GL/glew.h>
 #include <stdlib.h>
-#include "r_local.h"
+#include <stdbool.h>
+#include <assert.h>
+#include "r_media.h"
+#include "tea_vec.h"
 #include "r_draw.h"
-#include "tea_datatype.h"
-#include "tea_xml.h"
-#include "tea_utils.h"
 
-//#include "arrayqueue.h"
-//#include "fixed_arraylist.h"
-//#include "linked_list_hashmap.h"
+#include <SDL/SDL.h>
+#include <SDL/SDL_image.h>
+
+//#include "tea_datatype.h"
+//#include "tea_xml.h"
+//#include "tea_utils.h"
+
+#include "linked_list_queue.h"
+#include "fixed_arraylist.h"
+#include "linked_list_hashmap.h"
 
 /* use PHYSFS for image loading? */
 #if defined(HAVE_PHYSFS_H)
@@ -29,6 +37,8 @@
 #include "tea_fsrwops.h"
 #endif
 #endif
+
+#define ERR_S "error"
 
 static int __atlas = -1;
 
@@ -40,16 +50,16 @@ static int __allowed_thread = -1;
 
 /* this media wants its image data to be init'd.
  * We should put it on a queue so that the proper thread can init it. */
-static tea_arrayqueue_t *__media_to_init_queue;
+static llqueue_t *__media_to_init_queue;
 
-//tea_hashmap_t*                _hash = NULL;
-static tea_alistf_t *__mediaList = NULL;
+hashmap_t *__mediaHashmap = NULL;
+static arraylistf_t *__mediaList = NULL;
 
 static void __media_image_init_enque(
     media_t * media
 )
 {
-    tea_arrayqueue_offer(__media_to_init_queue, media);
+    llqueue_offer(__media_to_init_queue, media);
 }
 
 static ulong __media_hash(
@@ -58,7 +68,7 @@ static ulong __media_hash(
 {
     const media_t *m1 = e1;
 
-    return teaString_hash(m1->fname);
+    return r_hash_string(m1->fname);
 }
 
 static int __media_compare(
@@ -73,11 +83,13 @@ static int __media_compare(
 
 /*----------------------------------------------------------------------------*/
 
+#if 0
 static tea_object_t mediaObj = {
     __media_compare,
     __media_hash,
     NULL,
 };
+#endif
 
 void *ren_medias_get(
     const int idx
@@ -85,24 +97,18 @@ void *ren_medias_get(
 {
     media_t *media;
 
-//      return &ren_media[idx];
-
     if (NULL == __mediaList)
     {
         /* new media */
-        __mediaList = tea_alistf_initalloc(&mediaObj);
+        __mediaList = arraylistf_new(); //&mediaObj);
     }
-    //if (NULL == __mediaList) {
-    //      tea_msg(mREN, 0, "ERROR: __mediaList un-initialized\n");
-    //      assert(FALSE);
-    //}
 
-    media = tea_alistf_get(__mediaList, idx - 1);
+    media = arraylistf_get(__mediaList, idx - 1);
 
     /* get the emergency fall back image, prettttttty ugly */
     if (NULL == media)
     {
-        return tea_alistf_get(__mediaList, 0);
+        return arraylistf_get(__mediaList, 0);
     }
     else
     {
@@ -117,7 +123,8 @@ static void __media_release(
     media_t * media
 )
 {
-    tea_alistf_removeItem(__mediaList, media);
+    arraylistf_remove(__mediaList, media->id);
+//    arraylistf_removeItem(__mediaList, media);
 //      free(media->surface);
 //      rGraphic_realse(media->fname, media, NULL, R_INITSHADER_BILINEAR)) {
     SDL_FreeSurface(media->surface);
@@ -133,8 +140,8 @@ void ren_media_release(
 {
     if (NULL == __mediaList)
     {
-        tea_msg(mREN, 0, ERR_S "mediaList un-initialized\n");
-        assert(FALSE);
+        printf(ERR_S "mediaList un-initialized\n");
+        assert(false);
     }
 
     media_t *media;
@@ -147,8 +154,8 @@ void ren_media_release(
 
     if (media->refCount < 0)
     {
-        tea_msg(mREN, 0, "ERROR: refcount below zero! (media:%d refcount:%d)\n",
-                idx, media->refCount);
+        printf(ERR_S "refcount below zero! (media:%d refcount:%d)\n",
+               idx, media->refCount);
     }
     else if (0 == media->refCount)
     {
@@ -171,7 +178,7 @@ int ren_media_get_texture(
     assert(media);
 //    return media->glImage;
 
-    return ren_texture_atlas_get_glimage(__atlas);
+    return ren_texture_atlas_get_texture(__atlas);
 }
 
 void ren_media_get_texturecoords(
@@ -302,9 +309,9 @@ static SDL_Surface *__load_image(
 {
     SDL_Surface *surf;
 
-    if (!(surf = (SDL_Surface *) rLoadImageFile(fname)))
+    if (!(surf = (SDL_Surface *) r_load_image(fname)))
     {
-        tea_msg(mREN, 0, ERR_S "bad file: '(%s) ' \n ", fname);
+        printf(ERR_S "bad file: '(%s) ' \n ", fname);
         return NULL;
     }
 
@@ -367,7 +374,6 @@ static void __media_init_image(
     }
 #endif
 
-
 #if 1
     if (__atlas == -1)
     {
@@ -389,9 +395,10 @@ static void __media_init_image(
 
         if (!(surf = __load_image(media->fname, &w, &h)))
         {
-            tea_msg(mREN, 0, ERR_S "couldn't load image: %s\n", media->fname);
+            printf(ERR_S "couldn't load image: %s\n", media->fname);
             return;
         }
+
         media->glImage =
             ren_texture_atlas_push_pixels(__atlas, surf->pixels, w, h);
 //        media->glImage = ren_texture_atlas_push_file(__atlas, media->fname);
@@ -406,10 +413,8 @@ static media_t *__register_media(
 {
     media_t *media;
 
-//    media = tea_pool_malloc_zero(sizeof(media_t));
     media = calloc(1, sizeof(media_t));
     media->fname = strdup(fname);
-    tea_msg(mREN, 0, "reg'd media: %s\n", media->fname);
     return media;
 }
 
@@ -433,15 +438,14 @@ int ren_media_get(
     if (!__mediaList)
     {
         /* new media */
-        __mediaList = tea_alistf_initalloc(&mediaObj);
+        __mediaList = arraylistf_new();
     }
     else
     {
-        /* check if we already have this file loaded */
-        idx = 1 + tea_alistf_itemIndex(__mediaList, &(media_t)
-                                       {
-                                       .fname = fname}
-        );
+        if ((media = hashmap_get(__mediaHashmap, fname)))
+        {
+            idx = media->id;
+        }
     }
 
     if (0 < idx)
@@ -451,7 +455,8 @@ int ren_media_get(
     else
     {
         media = __register_media(fname);
-        idx = 1 + tea_alistf_add(__mediaList, media);
+        idx = 1 + arraylistf_add(__mediaList, media);
+        media->id = idx;
     }
 
     if (0 == media->refCount)
@@ -478,11 +483,11 @@ int ren_media_get(
 void ren_medias_step(
 )
 {
-    while (!tea_arrayqueue_isEmpty(__media_to_init_queue))
+    while (0 < llqueue_count(__media_to_init_queue))
     {
         media_t *media;
 
-        media = tea_arrayqueue_poll(__media_to_init_queue);
+        media = llqueue_poll(__media_to_init_queue);
         __media_init_image(media);
     }
 }
@@ -497,5 +502,64 @@ void ren_medias_allow_thread(
 void ren_medias_init(
 )
 {
-    __media_to_init_queue = tea_arrayqueue_initalloc(NULL);
+    __media_to_init_queue = llqueue_new();
+    __mediaHashmap = hashmap_new(r_hash_string, r_cmp_string);
+}
+
+/*----------------------------------------------------------------------------*/
+
+/**
+ * Loads an image and returns it as an SDL_Surface* casted as void*
+ * Can uses a physfs filesystem
+ * @return a SDL_Surface */
+void *r_load_image(
+    const char *fname
+)
+{
+    SDL_Surface *surf = NULL;
+
+#if defined(HAVE_PHYSFS_H)
+    void *file = NULL;
+    SDL_RWops *sdl_fd;
+
+    sdl_fd = fsRWOPS_openRead(fname, &file);
+#endif
+    /* if a *.bmp, use the bmp loader */
+    if (strstr(fname, ".bmp"))
+    {
+        if ((surf = (SDL_Surface *) SDL_LoadBMP(fname)) == NULL)
+        {
+            printf(ERR_S "couldn't find shader: %s\n", fname);
+        }
+    }
+    else if (strstr(fname, ".png"))
+    {
+//              if ((surf = (SDL_Surface*)IMG_Load(fname)) == NULL) {
+#if defined(HAVE_PHYSFS_H)
+        if (NULL == (surf = (SDL_Surface *) IMG_Load_RW(sdl_fd, 0)))
+        {
+#else
+        if ((surf = (SDL_Surface *) IMG_Load(fname)) == NULL)
+        {
+#endif
+            printf(ERR_S "couldn't find shader: %s\n", fname);
+        }
+        else
+        {
+        }
+    }
+
+#if defined(HAVE_PHYSFS_H)
+    if (sdl_fd)
+    {
+        sdl_fd->close(sdl_fd);
+        if (file)
+        {
+//                      printf("closed\n");
+            fs_file_close(file);
+        }
+    }
+#endif
+
+    return surf;
 }

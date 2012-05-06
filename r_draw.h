@@ -14,6 +14,7 @@
 #define _R_DRAW_H
 
 #include <stdlib.h>
+#include "tea_vec.h"
 
 typedef int indexGFX;
 
@@ -85,6 +86,7 @@ typedef struct
 typedef enum
 {
     RENT_SQUARE,
+    RENT_SQUARE_ROTATE,
     RENT_SQUARE_CENTER,         // center point is middle of rect
 //      RENT_SQUARE_COLORED,
     RENT_RECT,
@@ -103,6 +105,7 @@ typedef enum
     RENT_QUAD,
     RENT_BEAM,
     RENT_ARCHIVE,               // display list 
+    RENT_CANVAS,
 } r_enttype_e;
 
 typedef struct
@@ -148,7 +151,7 @@ typedef struct
 typedef struct
 {
     char *string;               // string data
-    bool useColor;
+    int useColor;
     int font;
     void *tdata;
 } ren_entity_text_t;
@@ -215,7 +218,8 @@ typedef struct ren_entity_s
     unsigned char alpha;
     unsigned char type;
 
-    bool mirror_yaxis;
+    /*  bool */
+    int mirror_yaxis;
 
 #if 0
     /* type/options */
@@ -253,20 +257,14 @@ typedef struct
      */
     /* orientation */
     float scale;
-    int w, h;
-    int x, y;
+//    int w, h;
+//    int x, y;
     vec2_t scrAcc;              // screen acel
     vec2_t cameraOrg, cameraTarg;
     float zoom;
 
     void *in;
 } ren_renderer_t;
-
-#define TILESIZE 32
-/*
-#define PUTPIXEL(x,y,c) \
- ((unsigned int*)gScreen->pixels)[(x) +(y)*(PITCH) ]= (c);
-*/
 
 extern int /*GLhandleARB */ rProgram[R_MAX_SHADER_PROGRAMS];
 
@@ -288,7 +286,6 @@ void ren_endFrame(
     void
 );
 
-//void ren_drawContextSet(ren_renderer_t* context);
 void ren_draw_setContext(
     ren_renderer_t * context
 );
@@ -473,7 +470,7 @@ void *rLoadImageFile(
     char *handle
 );
 
-bool rSurfaceColour2Vec(
+int rSurfaceColour2Vec(
     char *handle,
     int colour,
     vec2_t pixel_org
@@ -623,7 +620,7 @@ void ren_term_setCallbackTab(
     void (*tab_event_func) (char *line)
 );
 
-bool ren_term_isEnabled(
+int ren_term_isEnabled(
     int id
 );
 
@@ -694,6 +691,10 @@ int ren_obj_set_w(
     int w
 );
 
+void ren_obj_add_child(
+    ren_object_t * rob,
+    ren_object_t * child
+);
 
 ren_object_t *ren_obj_init(
     const int type
@@ -705,6 +706,20 @@ int ren_obj_draw(
 
 
 void ren_objs_draw(
+);
+
+
+void *r_load_image(
+    const char *fname
+);
+
+unsigned long r_hash_string(
+    const void *e1
+);
+
+long r_cmp_string(
+    const void *e1,
+    const void *e2
 );
 
 

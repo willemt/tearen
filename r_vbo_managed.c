@@ -22,6 +22,7 @@
  * */
 
 #include <stdio.h>
+#include <assert.h>
 #include <stdbool.h>
 #include <string.h>
 #include "tea_vec.h"
@@ -72,6 +73,10 @@ static int __freeslot_compare(
 
 
 /*----------------------------------------------------------------------------*/
+/**
+ * Create a managed VBO.
+ * @param n_elem number of elements in new VBO
+ * @return VBO ID*/
 unsigned int ren_vbom_init(
     const int n_elem
 )
@@ -85,14 +90,14 @@ unsigned int ren_vbom_init(
 
     vb = calloc(1, sizeof(vbo_t));
     vb->n_elem = n_elem;
-    vb->heap = heap_new(__freeslot_compare, NULL);      //teaObjUlong);
+    vb->heap = heap_new(__freeslot_compare, NULL);
+    /*  we are wrapping a VBO */
     vb->vbo = ren_vbo_init(n_elem);
-
     return arraylistf_add(__vbos, vb) + 1;
 }
 
-
-/* 
+/** 
+ * Find a slot that is free on this VBO
  * @return a new item slot on this VBO
  */
 int ren_vbom_new_itemslot(
@@ -101,20 +106,25 @@ int ren_vbom_new_itemslot(
 {
     vbo_t *vb = __get_vbo_from_id(id);
 
-    if (heap_isEmpty(vb->heap))
+    if (0 == heap_count(vb->heap))
     {
         assert(vb->n_length_inuse < vb->n_elem);
         return vb->n_length_inuse++;
     }
     else
     {
-        unsigned long slot = (unsigned long) heap_poll(vb->heap);
+        unsigned long slot;
+
+        slot = (unsigned long) heap_poll(vb->heap);
 
         return slot;
     }
 }
 
 /*----------------------------------------------------------------------------*/
+/**
+ * Set data elements of an item.
+ */
 void ren_vbom_item_set_vertices(
     const int id,
     const int item_idx,
@@ -124,7 +134,13 @@ void ren_vbom_item_set_vertices(
 {
     vbo_t *vb = __get_vbo_from_id(id);
 
-//    printf("VBO: %d set vertices of %d\n", id, item_idx);
+#if 0
+    printf("VBO: %d set #%d vertices of %d\n", id, nverts, item_idx);
+    int i;
+
+    for (i = 0; i < nverts; i++)
+        printf("%f,%f\n", verts[i].pos[0], verts[i].pos[1]);
+#endif
     ren_vbo_item_set_vertices(vb->vbo, item_idx, verts, nverts);
 }
 
@@ -178,6 +194,7 @@ void ren_vbom_draw_all(
     vbo_t *vb = __get_vbo_from_id(id);
 
 //    printf("drawing %d vbo objects\n", vb->n_elem);
+//    printf("drawing: %d\n", id);
 
     ren_vbom_draw(id, 0, vb->n_elem);
 }
