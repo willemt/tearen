@@ -26,7 +26,7 @@ int main(
         ren_obj_set_w(obs[ii], 1);
         ren_obj_set_h(obs[ii], 1);
         ren_obj_set_org(obs[ii], org);
-//        ren_obj_set_parent(obs[ii], canvas);
+        ren_obj_set_parent(obs[ii], canvas);
     }
 
     while (1)
