@@ -50,7 +50,7 @@ static int __allowed_thread = -1;
 
 /* this media wants its image data to be init'd.
  * We should put it on a queue so that the proper thread can init it. */
-static llqueue_t *__media_to_init_queue;
+static linked_list_queue_t *__media_to_init_queue;
 
 hashmap_t *__mediaHashmap = NULL;
 static arraylistf_t *__mediaList = NULL;
@@ -62,7 +62,7 @@ static void __media_image_init_enque(
     llqueue_offer(__media_to_init_queue, media);
 }
 
-static ulong __media_hash(
+static unsigned long __media_hash(
     const void *e1
 )
 {

@@ -22,7 +22,13 @@
  */
 
 #include <stdlib.h>
+#ifdef __APPLE__
+
+#else
+#define HAVE_GLEW 1
 #include <GL/glew.h>
+#endif
+
 #ifdef __APPLE__
 #include <GLUT/glut.h>
 #else
@@ -90,6 +96,7 @@ static int __initOpenGL(
 //      GL_ARB_fragment_shader 
 //      GL_ARB_vertex_shader
 
+#ifdef HAVE_GLEW
     glewInit();
 
     /* check if we have shader support */
@@ -120,6 +127,11 @@ static int __initOpenGL(
 //              rSysi->have_point_sprite = TRUE;
         }
     }
+
+#else
+
+
+#endif
 
 //      __initShaders();
 

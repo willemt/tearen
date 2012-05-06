@@ -19,11 +19,14 @@ contribs = [
 def configure(conf):
     conf.load('compiler_c')
 
+    if sys.platform == 'darwin':
+        conf.env.LIBPATH = ['/System/Library/Frameworks/OpenGL.framework/Versions/A/Libraries', '/usr/X11/lib','/opt/local/lib/']
+        conf.env.INCLUDES = ['/System/Library/Frameworks/OpenGL.framework/Versions/A/Libraries', '/usr/X11/include','/opt/local/include']
     conf.check_cc(lib='GL')
-    conf.check_cc(lib='GLEW')
+#    conf.check_cc(lib='GLEW')
     conf.check_cc(lib='glut')
-    conf.check_cc(lib='SDL_image')
     conf.check_cc(lib='SDL')
+    conf.check_cc(lib='SDL_image')
 
     if sys.platform != 'win32':
 #            conf.env.DEFINES   = ['TEST']
@@ -32,7 +35,6 @@ def configure(conf):
 #            conf.env.LIBPATH = ['/usr/lib']
 #            conf.env.LINKFLAGS_TEST = ['-g']
 #            conf.env.INCLUDES_TEST  = ['/opt/gnome/include']
-
 
     return
     # Get the required contributions via GIT
@@ -92,11 +94,13 @@ def build(bld):
             """,
                 target='tearen',
 #paths=['.', '/usr/lib64','/usr/lib'],
+
                 use=['GL', 'GLEW', 'SDL', 'SDL_image'],
                 includes='clinkedlistqueue chashmap_via_linked_list cheap pseudolru carraylistf',
                 cflags=[
                     '-Werror',
                     '-g',
+                    '-O',
                     '-Werror=uninitialized',
                     '-Werror=return-type',
                     '-Wcast-align']
@@ -126,6 +130,7 @@ def build(bld):
                 target='demo',
                 cflags=[
                     '-g',
+                    '-O',
                     '-Werror',
                     '-Werror=uninitialized',
                     '-Werror=return-type'
