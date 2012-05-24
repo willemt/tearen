@@ -1,22 +1,4 @@
-/*
- * =====================================================================================
- *
- *       Filename:  r_vbo.c
- *
- *    Description:  
- *
- *        Version:  1.0
- *        Created:  04/03/11 20:37:02
- *       Revision:  none
- *       Compiler:  gcc
- *
- *         Author:  YOUR NAME (), 
- *        Company:  
- *
- * =====================================================================================
- */
-
-/* 
+/** 
  * managed VBO
  *
  * */
@@ -27,7 +9,8 @@
 #include <string.h>
 #include "tea_vec.h"
 #include "r_draw.h"
-#include <GL/gl.h>
+//#include <GL/gl.h>
+#include "SDL/SDL_opengl.h"
 
 
 #include "heap.h"
@@ -45,6 +28,9 @@ typedef struct
     /*  creation is different from recycling */
     int n_length_inuse;
 } vbo_t;
+
+
+/*----------------------------------------------------------------------------*/
 
 arraylistf_t *__vbos = NULL;
 
@@ -67,10 +53,6 @@ static int __freeslot_compare(
 
     return ret;
 }
-
-/*----------------------------------------------------------------------------*/
-
-
 
 /*----------------------------------------------------------------------------*/
 /**

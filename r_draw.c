@@ -1,16 +1,4 @@
 
-/* 
-::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-*  Tactical Elemental Arenas                                                
-*  C Implementation: render draw (main)                                     
-*                                                                           
-*                                                                           
-*---------------------------------------------------------------------------
-*	Copyright (C) 2005 by Willem-Hendrik Thiart                         
-*	beandaddy@gmail.com                                                 
-::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-*/
-
 /**
  * TODO
  * use tea adts and caching for pixel shaders
@@ -22,6 +10,8 @@
  */
 
 #include <stdlib.h>
+
+#if 0
 #ifdef __APPLE__
 
 #else
@@ -34,15 +24,18 @@
 #else
 #include <GL/glut.h>
 #endif
+#endif
+
+
+
 #include <assert.h>
-//#include "r_local.h"
 #include "tea_vec.h"
 #include <stdbool.h>
 #include "r_draw.h"
 #include <SDL/SDL.h>
-//#include "r_opengl.h"
-//#include "r_tiles.h"
-//#include "tea_datatype.h"
+#include "SDL/SDL_opengl.h"
+#include <OpenGL/gl.h>
+#include <OpenGL/glext.h>
 
 #define ACCUM_BUFFER 0
 #define R_SDL_SCREENFLAGS SDL_OPENGL|SDL_GL_DOUBLEBUFFER
@@ -133,31 +126,25 @@ static int __initOpenGL(
 
 #endif
 
-//      __initShaders();
-
-#if 0
+#if 1
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
-    glClearColor(0.4f, 0.4f, 0.4f, 0.0f);
-#endif
+#else
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-#if ACCUM_BUFFER
-    glClear(GL_ACCUM_BUFFER_BIT);
 #endif
+
 
 //      glShadeModel(GL_SMOOTH);
 //      glDisable(GL_DEPTH_TEST);
-
-//              glPolygonMode(GL_FRONT, GL_FILL);
-//              glPolygonMode(GL_BACK, GL_LINE);
-//              glDisable(GL_CULL_FACE);
+//      glPolygonMode(GL_FRONT, GL_FILL);
+//      glPolygonMode(GL_BACK, GL_LINE);
+//      glDisable(GL_CULL_FACE);
 //      glDisable(GL_ARB_texture_non_power_of_two);
 
     return 1;
@@ -226,9 +213,7 @@ static int __initSDL_start(
 {
     int video_flags = 0;
 
-//      SDL_VideoInfo   const *vinfo;
-
-    video_flags = SDL_HWSURFACE;
+    video_flags = SDL_HWSURFACE | SDL_OPENGL;
 
     if (SDL_Init(SDL_INIT_VIDEO) < 0)
     {
@@ -236,15 +221,18 @@ static int __initSDL_start(
         exit(2);
     }
 
+#if 0
     printf("OpenGL version: %s\n", glGetString(GL_VERSION));
     printf("OpenGL vendor: %s\n", glGetString(GL_VENDOR));
     printf("OpenGL renderer: %s\n", glGetString(GL_RENDERER));
     printf("setting size: %d %d\n", w, h);
+#endif
 
 //      SDL_WM_SetIcon( IMG_Load("tea.png"), NULL );
-    SDL_WM_SetCaption(name, name);
+//    SDL_WM_SetCaption(name, name);
     __vid_info();
 
+#if 0
     if (opengl)
     {
         // TODO: add fullscreen
@@ -254,8 +242,9 @@ static int __initSDL_start(
         //video_flags |= SDL_FULLSCREEN;
         //video_flags |= SDL_RESIZABLE
     }
+#endif
 
-    in(rSys)->screen = SDL_SetVideoMode(w, h, 32, video_flags);
+    in(rSys)->screen = SDL_SetVideoMode(640, 480, 32, video_flags);
 
     return 0;
 }
@@ -312,135 +301,23 @@ void ren_draw_disable(
 
 /*------------------------------------------------------- ACTUAL DRAW METHODS */
 
-#if 0
-/**
- * This somehow fixes a bug. */
-static void __fakefix(
-)
-{
-#if 0
-    ren_entity_t rent;
-
-    memset(&rent, 0, sizeof(ren_entity_t));
-    rent.rotAngle[2] = 10;
-    ren_rent_draw(&rent);
-#endif
-}
-
-/** draw everything to the screen */
-void ren_draw_step(
-    vec2_t camera_org
-)
-{
-    int ii;
-    vec2_t camera = { 0, 0 };
-
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glDisable(GL_CULL_FACE);
-    glDisable(GL_DEPTH_TEST);
-//      glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-
-    __fakefix();
-
-//    rOGLResetColor();
-
-    ren_objs_draw();
-}
-#endif
-
-const float vertexPositions[] = {
-    -1.0f, 1.0f, 0.0f, 1.0f,
-    0.75f, 0.75f, 0.0f, 1.0f,
-    0.75f, -0.75f, 0.0f, 1.0f,
-    -0.75f, -0.75f, 0.0f, 1.0f,
-};
-
-int positionBufferObject;
-
-void InitializeVertexBuffer(
-)
-{
-    glGenBuffers(1, &positionBufferObject);
-
-    glBindBuffer(GL_ARRAY_BUFFER, positionBufferObject);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertexPositions), vertexPositions,
-                 GL_STATIC_DRAW);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-}
-
 /** zero the marker */
 void ren_frame_begin(
     void
 )
 {
-/*
-	glViewport (0,0,in(rSys)->w,in(rSys)->h);
-	glMatrixMode (GL_PROJECTION);
-	glLoadIdentity ();	
-	glOrtho(0.0f, in(rSys)->w,in(rSys)->h, 0.0f, -100, 100);
-
-	glMatrixMode (GL_MODELVIEW);	
-	glLoadIdentity ();					
-*/
-
-#if 0
-    glClearColor(1.0f, 0.0f, 1.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-#endif
-
-#if 0
-    /* Set The Viewport To The Top Left.
-     * It Will Take Up Half The Screen in(rSys)->w And in(rSys)->h */
-//    glViewport(rSys->x, rSys->y, rSys->w, rSys->h);
-    glViewport(0, 0, in(rSys)->w, in(rSys)->h);
-//    glViewport(rSys->x, rSys->y, 100, 100);
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    /* Set Up Ortho Mode To Fit 1/4 The Screen (Size Of A Viewport) */
-    //gluOrtho2D(0, window_in(rSys)->w/2, window_in(rSys)->h/2, 0);
-//    glOrtho(0.0f, rSys->w, rSys->h, 0.0f, -100, 100);
-    glOrtho(0.0f, in(rSys)->w, in(rSys)->h, 0.0f, -100, 100);
-//    glScalef(rSys->scale, rSys->scale, 1);
-//    glScalef(1.0f, 1.0f, 1.0f);
-#endif
-
-//    glMatrixMode(GL_MODELVIEW);
-//    glLoadIdentity();
-
     glDisable(GL_DEPTH_TEST);
-    glClearColor(0.2f, 0.2f, 0.2f, 0.0f);
+    glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
-//    glUseProgram(theProgram);
-
-#if 0
-    glEnable(GL_TEXTURE_2D);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-    glBindTexture(GL_TEXTURE_2D, 1);
-
-
-
-    glBindBuffer(GL_ARRAY_BUFFER, positionBufferObject);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0);
-
-    glDrawArrays(GL_QUADS, 0, 4);
-
-    glDisableVertexAttribArray(0);
-#endif
-
-//    glUseProgram(0);
 }
 
 void ren_frame_end(
     void
 )
 {
-//    glFlush();
     SDL_GL_SwapBuffers();
+//    glFlush();
 //    glutSwapBuffers();
 }
 
@@ -453,7 +330,8 @@ void ren_set_screensize(
     in(rSys)->h = h;
 }
 
-/** init the renderer sub system */
+/**
+ * init the renderer sub system */
 void ren_draw_init(
     char *name
 )
@@ -476,14 +354,6 @@ void ren_draw_init(
 
     ren_medias_init();
 //    ren_rents_init();
-
-
-#if 0
-    InitializeVertexBuffer();
-    glBindBuffer(GL_ARRAY_BUFFER, positionBufferObject);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0);
-#endif
 }
 
 /*--------------------------------------------------------------79-characters-*/

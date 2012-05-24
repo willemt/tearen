@@ -1,22 +1,3 @@
-/*
- * =====================================================================================
- *
- *       Filename:  r_vbo.c
- *
- *    Description:  
- *
- *        Version:  1.0
- *        Created:  04/03/11 20:37:02
- *       Revision:  none
- *       Compiler:  gcc
- *
- *         Author:  YOUR NAME (), 
- *        Company:  
- *
- * =====================================================================================
- */
-
-//#include "r_local.h"
 
 #include <stdio.h>
 #include <assert.h>
@@ -24,7 +5,8 @@
 #include <string.h>
 #include "tea_vec.h"
 #include "r_draw.h"
-#include <GL/gl.h>
+//#include <GL/gl.h>
+#include "SDL/SDL_opengl.h"
 //#include "r_opengl.h"
 
 #define BUFFER_OFFSET(i) ((char *)NULL + (i))

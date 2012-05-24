@@ -1,16 +1,4 @@
-/* 
-::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-* Tactical Elemental Arenas
-*  C Implementation: r_media 
-*
-*
-*
-* Author: Willem-Hendrik Thiart <beandaddy@gmail.com>, (C) 2006
-* Copyright: See COPYING file that comes with this distribution
-::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-*/
 
-//#include <GL/glew.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <assert.h>
@@ -20,10 +8,7 @@
 
 #include <SDL/SDL.h>
 #include <SDL/SDL_image.h>
-
-//#include "tea_datatype.h"
-//#include "tea_xml.h"
-//#include "tea_utils.h"
+#include "SDL/SDL_opengl.h"
 
 #include "linked_list_queue.h"
 #include "fixed_arraylist.h"
@@ -52,7 +37,7 @@ static int __allowed_thread = -1;
  * We should put it on a queue so that the proper thread can init it. */
 static linked_list_queue_t *__media_to_init_queue;
 
-hashmap_t *__mediaHashmap = NULL;
+static hashmap_t *__mediaHashmap = NULL;
 static arraylistf_t *__mediaList = NULL;
 
 static void __media_image_init_enque(
@@ -83,24 +68,19 @@ static int __media_compare(
 
 /*----------------------------------------------------------------------------*/
 
-#if 0
-static tea_object_t mediaObj = {
-    __media_compare,
-    __media_hash,
-    NULL,
-};
-#endif
-
+/**
+ * Get this media from this index */
 void *ren_medias_get(
     const int idx
 )
 {
     media_t *media;
 
+
+    /* initialise new media list */
     if (NULL == __mediaList)
     {
-        /* new media */
-        __mediaList = arraylistf_new(); //&mediaObj);
+        __mediaList = arraylistf_new();
     }
 
     media = arraylistf_get(__mediaList, idx - 1);
@@ -131,20 +111,21 @@ static void __media_release(
     glDeleteTextures(1, &media->glImage);
     free(media->fname);
     free(media);
-//    tea_pool_free(media);
 }
 
+/**
+ * free media from memory */
 void ren_media_release(
     int idx
 )
 {
+    media_t *media;
+
     if (NULL == __mediaList)
     {
         printf(ERR_S "mediaList un-initialized\n");
         assert(false);
     }
-
-    media_t *media;
 
     media = ren_medias_get(idx);
 
@@ -152,11 +133,13 @@ void ren_media_release(
     media->refCount--;
 //      assert(media->refCount
 
+    /* make sure reference count makes sense */
     if (media->refCount < 0)
     {
         printf(ERR_S "refcount below zero! (media:%d refcount:%d)\n",
                idx, media->refCount);
     }
+    /* only release when refcount is 0 */
     else if (0 == media->refCount)
     {
         __media_release(media);
@@ -176,7 +159,6 @@ int ren_media_get_texture(
     media_t *media = ren_medias_get(idx);
 
     assert(media);
-//    return media->glImage;
 
     return ren_texture_atlas_get_texture(__atlas);
 }
@@ -195,7 +177,6 @@ void ren_media_get_texturecoords(
                                             end);
 }
 
-
 const char *ren_media_get_filename(
     const void *media
 )
@@ -203,10 +184,9 @@ const char *ren_media_get_filename(
     return ((media_t *) media)->fname;
 }
 
-
 void ren_media_resize_w_by_realw(
-    int idx,
-    int w,
+    const int idx,
+    const int w,
     float *w_out
 )
 {
@@ -216,9 +196,9 @@ void ren_media_resize_w_by_realw(
 }
 
 void ren_media_resize_h_by_realh(
-    int idx,
-    int h,
-    float *h_out
+    const int idx,
+    const int h,
+    const float *h_out
 )
 {
     media_t *media = ren_medias_get(idx);
@@ -246,7 +226,7 @@ static bool __texture_size_is_possible(
 
 #define MIN_TEXTURE_SIZE 32
 
-/*
+/**
  * Find out what the maximum texture size is
  * */
 static void __get_max_texture_size(
@@ -273,14 +253,15 @@ static int __create_blank_texture(
     const int h
 )
 {
-    GLuint image = 0;           //This is our texture
+    GLuint image = 0;
+
+    unsigned char data[w * h * 4];
 
     int bpp;
 
     glGenTextures(1, &image);
     glBindTexture(GL_TEXTURE_2D, image);
     bpp = GL_RGBA;
-    unsigned char data[w * h * 4];
 
     memset(data, 0, sizeof(unsigned char) * w * h);
 #if 0
@@ -291,7 +272,7 @@ static int __create_blank_texture(
             data[ii * w + jj] = 127;
 #endif
 
-    // error checking for maximum size of textures?
+    /* error checking for maximum size of textures? */
     glTexImage2D
         (GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, bpp, GL_UNSIGNED_BYTE, data);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -337,44 +318,6 @@ static void __media_init_image(
     media_t * media
 )
 {
-#if 0
-    if (strlen(media->fname) == 0)
-    {
-#if 1
-        media->inuse = true;
-        media->surface =
-            SDL_CreateRGBSurface(SDL_SWSURFACE, 32, 32, 32, 0, 0, 0, 0);
-        if (media->surface == NULL)
-        {
-            fprintf(stderr, "rmedia: couldn't create lcont surface: %s\n",
-                    SDL_GetError());
-            exit(1);
-        }
-
-        media->glImage = rOpenglTexture(media->surface, R_INITSHADER_BILINEAR);
-
-//        if (src_rect)
-//            media->surface = crop(media->surface, src_rect);
-
-        media->w = media->surface->w;
-        media->h = media->surface->h;
-//      media->surface = surf2TaglessSurf(media->surface);
-//      media->surface = rPowerOf2erizer(media->surface);
-        media->wReal = media->surface->w;
-        media->hReal = media->surface->h;
-        media->glImage = rOpenglTexture(media->surface, R_INITSHADER_BILINEAR);
-        SDL_FreeSurface(media->surface);
-
-        return;
-#endif
-    }
-    else if (0 <= initShader(media->fname, media, NULL, R_INITSHADER_BILINEAR))
-    {
-
-    }
-#endif
-
-#if 1
     if (__atlas == -1)
     {
         int w, h;
@@ -404,7 +347,6 @@ static void __media_init_image(
 //        media->glImage = ren_texture_atlas_push_file(__atlas, media->fname);
         SDL_FreeSurface(surf);
     }
-#endif
 }
 
 static media_t *__register_media(
@@ -418,7 +360,7 @@ static media_t *__register_media(
     return media;
 }
 
-/*
+/**
  * get the media associate with this file name
  * automatically load the media into graphics memory
  * enqueue the media loading if we are in another thread
@@ -480,6 +422,8 @@ int ren_media_get(
 }
 
 /*----------------------------------------------------------------------------*/
+/**
+ * Step through and ensure that all polled media is processed. */
 void ren_medias_step(
 )
 {

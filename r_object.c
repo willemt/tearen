@@ -1,22 +1,5 @@
-/*
- * ============================================================================
- *
- *       Filename:  r_object.c
- *
- *    Description:  renderable object - state based rendering
- *
- *        Version:  1.0
- *        Created:  12/12/10 19:19:39
- *       Revision:  none
- *       Compiler:  gcc
- *
- *         Author:  YOUR NAME (), 
- *        Company:  
- *
- * ============================================================================
- */
 
-/*
+/**
  * 
  * multiple VBOs
  *  put verts in VBO according to GLTexture
@@ -31,11 +14,14 @@
 #include <assert.h>
 #include "tea_vec.h"
 #include "r_draw.h"
-#include <GL/gl.h>
+#include "SDL/SDL_opengl.h"
+//#include <GL/gl.h>
 //#include <opengl/OpenGL.h>
 #include "linked_list_hashmap.h"
 #include "fixed_arraylist.h"
 
+
+/*----------------------------------------------------------------------------*/
 /**
  * generic type structure for render objects.
  * All objects sub-class this struct via typedata. */
@@ -215,6 +201,8 @@ static tea_object_t __objRentZ = {
     NULL,
 };
 #endif
+
+/*----------------------------------------------------------------------------*/
 
 /**
  * Robject destructor */
@@ -922,14 +910,12 @@ void ren_objs_draw(
     }
 #endif
 
-//    tea_iter_t *iter;
-
+#if 0
     if (__vbosByTex)
     {
-#if 0
         tea_iter_forall_udata(hashmap_iterKeys
                               (__vbosByTex),
                               (void *) __draw_vbo_from_texture, NULL);
-#endif
     }
+#endif
 }

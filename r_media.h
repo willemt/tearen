@@ -1,6 +1,7 @@
 
 #include "SDL/SDL.h"
-#include "GL/gl.h"
+//#include "GL/gl.h"
+#include "SDL/SDL_opengl.h"
 #include <SDL/SDL_image.h>
 
 //
@@ -22,3 +23,7 @@ typedef struct media_s
     bool inuse;                 // is media being used?
     char *fname;
 } media_t;
+
+
+
+

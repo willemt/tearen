@@ -1,21 +1,3 @@
-/*
- * =====================================================================================
- *
- *       Filename:  r_texture_atlas.c
- *
- *    Description:  
- *
- *        Version:  1.0
- *        Created:  03/27/11 19:52:56
- *       Revision:  none
- *       Compiler:  gcc
- *
- *         Author:  YOUR NAME (), 
- *        Company:  
- *
- * =====================================================================================
- */
-
 #include <stdio.h>
 #include <stdbool.h>
 #include <assert.h>

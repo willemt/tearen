@@ -2,8 +2,10 @@
 
 #include "r_draw.h"
 
+#include "SDL/SDL.h"
 
-int main(
+
+int SDL_main(
     int argc,
     char **argv
 )
