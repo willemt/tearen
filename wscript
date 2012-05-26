@@ -14,25 +14,18 @@ contribs = [
 ('carraylistf','git@github.com:willemt/CFixedArraylist.git'),
 ('pseudolru','git@github.com:willemt/CPseudoLRU.git')]
 
-#bld(rule='mkdir clinkedlistqueue && git pull git@github.com:willemt/CLinkedListQueue.git', always=True)
-
 def configure(conf):
     conf.load('compiler_c')
 
     if sys.platform == 'darwin':
         conf.env.LIBPATH = [
 		'/System/Library/Frameworks/OpenGL.framework/Libraries',
-#		'/Library/Frameworks/SDL.framework/Versions/A',
-#		 '/usr/X11/lib',
 		'/opt/local/lib/'
 	]
         conf.env.INCLUDES = [
 		'/System/Library/Frameworks/OpenGL.framework/Libraries',
 		 '/opt/local/include'
 	]
-#        conf.env.INCLUDES = ['/System/Library/Frameworks/OpenGL.framework/Versions/A/Libraries', '/usr/X11/include','/opt/local/include']
-#        conf.env.LIBPATH = ['/usr/X11/lib','/opt/local/lib/']
-#        conf.env.INCLUDES = ['/usr/X11/include','/opt/local/include']
 
     conf.check_cfg(path='sdl-config', args='--cflags --libs', package='', uselib_store='SDL')
     conf.check_cc(lib='GL')
@@ -42,14 +35,14 @@ def configure(conf):
     conf.check_cc(lib='SDL_image')
 
     if sys.platform != 'win32':
-#            conf.env.DEFINES   = ['TEST']
-#            conf.env.CFLAGS   = ['-O0'] 
             conf.env.LIB       = ['m','SDL_image']#,']#glut']
+#            conf.env.CFLAGS   = ['-O0'] 
 #            conf.env.LIBPATH = ['/usr/lib']
 #            conf.env.LINKFLAGS_TEST = ['-g']
 #            conf.env.INCLUDES_TEST  = ['/opt/gnome/include']
 
     return
+
     # Get the required contributions via GIT
     for c in contribs:
         print "Git pulling %s..." % c[1]
@@ -86,10 +79,6 @@ def unittest(bld, src):
 #*----------------------------------------------------------------------------*/
 
 def build(bld):
-#        bld.stlib(source='a.c', target='mystlib')
-
-
-
         bld.shlib(
             source="""
             r_draw.c
@@ -108,9 +97,6 @@ def build(bld):
             carraylistf/fixed_arraylist.c
             """,
                 target='tearen',
-
-#paths=['.', '/usr/lib64','/usr/lib'],
-
                 use=['GL', 'GLEW'],#, 'SDL', 'SDL_image'],
                 includes='clinkedlistqueue chashmap_via_linked_list cheap pseudolru carraylistf',
                 uselib = 'SDL',
@@ -125,24 +111,8 @@ def build(bld):
 
 
         unittest(bld,'test_texture_atlas.c')
-#        unittest(bld,'test_bt.c')
-#        unittest(bld,'test_bitfield.c')
-#        unittest(bld,'test_bt.c')
-#        unittest(bld,'test_byte_reader.c')
-#        unittest(bld,'test_filedumper.c')
-#        unittest(bld,'test_metafile.c')
-#        unittest(bld,'test_piece.c')
-#        unittest(bld,'test_piece_db.c')
-#        unittest(bld,'test_pwp_event_manager.c')
-#        unittest(bld,'test_raprogress.c')
-#        unittest(bld,'test_peer_connection.c')
-#        unittest(bld,'test_choker_leecher.c')
-#        unittest(bld,'test_choker_seeder.c')
-#        unittest(bld,'test_rarestfirst.c')
-#        unittest(bld,'test_peer_connection_read.c')
-#        unittest(bld,'test_peer_connection_send.c')
-
         bld.program(
+
                 source='demo.c',
                 target='demo',
                 cflags=[
@@ -153,18 +123,4 @@ def build(bld):
                     '-Werror=return-type'
                     ],
                 use=['tearen'])
-
-        return 
-        bld.program(
-                source='main.c',
-                target='main',
-                cflags=[
-                    '-g',
-                    '-Werror',
-                    '-Werror=uninitialized',
-                    '-Werror=return-type'
-                    ],
-                use=['tearen'])
-
-
 

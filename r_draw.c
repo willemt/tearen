@@ -37,7 +37,6 @@
 #include <OpenGL/gl.h>
 #include <OpenGL/glext.h>
 
-#define ACCUM_BUFFER 0
 #define R_SDL_SCREENFLAGS SDL_OPENGL|SDL_GL_DOUBLEBUFFER
 
 #define ERR_S "error"
@@ -253,7 +252,7 @@ static int __initSDL_start(
 
 /** Set Renderer options/flags */
 void ren_draw_enable(
-    int flag
+    const int flag
 )
 {
     switch (flag)
@@ -276,7 +275,7 @@ void ren_draw_enable(
 }
 
 void ren_draw_disable(
-    int flag
+    const int flag
 )
 {
     switch (flag)
