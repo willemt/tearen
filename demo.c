@@ -1,14 +1,21 @@
 
-
 #include "r_draw.h"
 
 #include "SDL/SDL.h"
+#include "SDL/SDL_main.h"
 
 
+#if defined(DARWIN)
 int SDL_main(
     int argc,
     char **argv
 )
+#else
+int main(
+    int argc,
+    char **argv
+)
+#endif
 {
     ren_object_t *obs[1000];
     ren_object_t *canvas;

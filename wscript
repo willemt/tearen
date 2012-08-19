@@ -4,7 +4,7 @@ import sys
 def options(opt):
         opt.load('compiler_c')
 
-
+# These are the libraries that we need for tearen:
 contribs = [
 ('clinkedlistqueue', 'git@github.com:willemt/CLinkedListQueue.git'),
 ('ccircularbuffer', 'git@github.com:willemt/CCircularBuffer.git'),
@@ -21,11 +21,16 @@ def configure(conf):
         conf.env.LIBPATH = [
 		'/System/Library/Frameworks/OpenGL.framework/Libraries',
 		'/opt/local/lib/'
-	]
+        ]
         conf.env.INCLUDES = [
-		'/System/Library/Frameworks/OpenGL.framework/Libraries',
+		'/System/Library/Frameworks/OpenGL.framework/Libraries/opengl',
 		 '/opt/local/include'
-	]
+        ]
+        conf.define('DARWIN', '1') 
+    else:
+        conf.env.INCLUDES = [ 
+            '/usr/include/GL/'
+        ]
 
     conf.check_cfg(path='sdl-config', args='--cflags --libs', package='', uselib_store='SDL')
     conf.check_cc(lib='GL')
@@ -33,6 +38,8 @@ def configure(conf):
 #    conf.check_cc(lib='GLEW')
 #    conf.check_cc(lib='SDL')
     conf.check_cc(lib='SDL_image')
+    conf.check(header_name="gl.h")
+#    conf.check(header_name="glext.h")
 
     if sys.platform != 'win32':
             conf.env.LIB       = ['m','SDL_image']#,']#glut']
@@ -40,8 +47,6 @@ def configure(conf):
 #            conf.env.LIBPATH = ['/usr/lib']
 #            conf.env.LINKFLAGS_TEST = ['-g']
 #            conf.env.INCLUDES_TEST  = ['/opt/gnome/include']
-
-    return
 
     # Get the required contributions via GIT
     for c in contribs:
@@ -124,3 +129,5 @@ def build(bld):
                     ],
                 use=['tearen'])
 
+
+# vim: set expandtab!

@@ -1,3 +1,32 @@
+/*
+ 
+Copyright (c) 2011, Willem-Hendrik Thiart
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
+      documentation and/or other materials provided with the distribution.
+    * The names of its contributors may not be used to endorse or promote
+      products derived from this software without specific prior written
+      permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL WILLEM-HENDRIK THIART BE LIABLE FOR ANY
+DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+*/
+
 
 #include <stdlib.h>
 #include <stdbool.h>
@@ -8,7 +37,7 @@
 
 #include <SDL/SDL.h>
 #include <SDL/SDL_image.h>
-#include "SDL/SDL_opengl.h"
+#include <SDL/SDL_opengl.h>
 
 #include "linked_list_queue.h"
 #include "fixed_arraylist.h"
@@ -27,19 +56,22 @@
 
 static int __atlas = -1;
 
-/*----------------------------------------------------- OBJECT CLASSIFICATION */
 
-/* only allow this thread to do init graphics.
- * others will force images onto the init queue */
+/* Only allow this thread to do graphics.
+ * Others will force images onto the initialisation queue */
 static int __allowed_thread = -1;
 
-/* this media wants its image data to be init'd.
- * We should put it on a queue so that the proper thread can init it. */
+/* This media wants its image data to be initialized.
+ * We put it on a queue so that the proper thread can init it. */
 static linked_list_queue_t *__media_to_init_queue;
 
+/* Mapping of file name to media */
 static hashmap_t *__mediaHashmap = NULL;
+
+/* Mapping of ID to media */
 static arraylistf_t *__mediaList = NULL;
 
+/*----------------------------------------------------- OBJECT CLASSIFICATION */
 static void __media_image_init_enque(
     media_t * media
 )
@@ -69,7 +101,7 @@ static int __media_compare(
 /*----------------------------------------------------------------------------*/
 
 /**
- * Get this media from this index */
+ * Get this media from this ID */
 void *ren_medias_get(
     const int idx
 )
@@ -77,7 +109,7 @@ void *ren_medias_get(
     media_t *media;
 
 
-    /* initialise new media list */
+    /* initialise new media list if necessary */
     if (NULL == __mediaList)
     {
         __mediaList = arraylistf_new();
@@ -85,7 +117,7 @@ void *ren_medias_get(
 
     media = arraylistf_get(__mediaList, idx - 1);
 
-    /* get the emergency fall back image, prettttttty ugly */
+    /* get the emergency fall back image */
     if (NULL == media)
     {
         return arraylistf_get(__mediaList, 0);
@@ -104,9 +136,6 @@ static void __media_release(
 )
 {
     arraylistf_remove(__mediaList, media->id);
-//    arraylistf_removeItem(__mediaList, media);
-//      free(media->surface);
-//      rGraphic_realse(media->fname, media, NULL, R_INITSHADER_BILINEAR)) {
     SDL_FreeSurface(media->surface);
     glDeleteTextures(1, &media->glImage);
     free(media->fname);
@@ -114,7 +143,7 @@ static void __media_release(
 }
 
 /**
- * free media from memory */
+ * release the media's used memory, and remove it from the media DB */
 void ren_media_release(
     int idx
 )
@@ -131,7 +160,6 @@ void ren_media_release(
 
     assert(media);
     media->refCount--;
-//      assert(media->refCount
 
     /* make sure reference count makes sense */
     if (media->refCount < 0)
@@ -148,12 +176,12 @@ void ren_media_release(
 
 /*----------------------------------------------------------------------------*/
 
-/*
- * 
+/**
+ * Get the texture that this media uses
  * @return 0 on error
  */
 int ren_media_get_texture(
-    int idx
+    const int idx
 )
 {
     media_t *media = ren_medias_get(idx);
@@ -163,6 +191,9 @@ int ren_media_get_texture(
     return ren_texture_atlas_get_texture(__atlas);
 }
 
+/**
+ * Get the texture coordinates of this texture as it may be sitting on a texture
+ * atlas */
 void ren_media_get_texturecoords(
     int idx,
     vec2_t begin,
@@ -198,7 +229,7 @@ void ren_media_resize_w_by_realw(
 void ren_media_resize_h_by_realh(
     const int idx,
     const int h,
-    const float *h_out
+    float *h_out
 )
 {
     media_t *media = ren_medias_get(idx);

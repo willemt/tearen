@@ -1,14 +1,3 @@
-/* 
-::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-* Tactical Elemental Arenas
-*  C Header: renderer draw 
-*
-*
-*
-* Author: Willem-Hendrik Thiart <beandaddy@gmail.com>, (C) 2006
-* Copyright: See COPYING file that comes with this distribution
-::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-*/
 
 #ifndef _R_DRAW_H
 #define _R_DRAW_H
@@ -221,14 +210,6 @@ typedef struct ren_entity_s
     /*  bool */
     int mirror_yaxis;
 
-#if 0
-    /* type/options */
-    int pstrainDepth;
-    void *pstrain;              // pixel shader train
-    unsigned char pShader;
-    int pixelShader;            // pixel shader index
-#endif
-
     int flags;
 
     ren_effect_t *effect;
@@ -244,21 +225,12 @@ typedef struct ren_entity_s
     };
 } ren_entity_t;
 
-//#define LCLIENTF_REDSKY (1<<1)
-#define RF_REDSKY (1<<1)        // draw in red sky man
 typedef struct
 {
     int flags;
 
-    /*int           pstrainsNum; // number of unique pstrains
-     * void*                pstrainHeader; // array grows and dies
-     * void*                pstrainCurr; // current pixel shader train
-     * void*                pstrainLatest; // latest added pixel shader
-     */
     /* orientation */
     float scale;
-//    int w, h;
-//    int x, y;
     vec2_t scrAcc;              // screen acel
     vec2_t cameraOrg, cameraTarg;
     float zoom;
@@ -266,9 +238,11 @@ typedef struct
     void *in;
 } ren_renderer_t;
 
+#if 0
 extern int /*GLhandleARB */ rProgram[R_MAX_SHADER_PROGRAMS];
 
 extern ren_entity_t renderable_entities[R_MAX_RENTITIES];
+#endif
 
 extern ren_renderer_t *rSys;
 

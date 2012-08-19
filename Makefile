@@ -1,2 +1,6 @@
 a:
-	if test -d waf; then python waf; else echo Downloading waf...; wget http://waf.googlecode.com/files/waf-1.7.2; mv waf-1.7.2 waf; python waf configure; python waf; fi
+	if test -e waf; \
+	then python waf configure && python waf; \
+	else echo Downloading waf...; wget http://waf.googlecode.com/files/waf-1.7.2; mv waf-1.7.2 waf; python waf configure; python waf; \
+	fi
+
