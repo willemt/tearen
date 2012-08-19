@@ -5,6 +5,10 @@
 #include "SDL/SDL_main.h"
 
 
+/* for details around SDL_main see:
+http://sdl.beuc.net/sdl.wiki/FAQ_MacOS_X_SDLMain.m
+*/
+
 #if defined(DARWIN)
 int SDL_main(
     int argc,

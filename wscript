@@ -12,7 +12,8 @@ contribs = [
 ('cmeanqueue','git@github.com:willemt/CMeanQueue.git'),
 ('cheap','git@github.com:willemt/CHeap.git'),
 ('carraylistf','git@github.com:willemt/CFixedArraylist.git'),
-('pseudolru','git@github.com:willemt/CPseudoLRU.git')]
+('pseudolru','git@github.com:willemt/CPseudoLRU.git'),
+('textureatlas','git@github.com:willemt/CTextureAtlas.git')]
 
 def configure(conf):
     conf.load('compiler_c')
@@ -88,13 +89,13 @@ def build(bld):
             source="""
             r_draw.c
             r_media.c
-            r_texture_atlas.c
             r_object.c
             r_vbo.c
             r_vbo_managed.c
             r_util.c
             test_tearen.c
             CuTest.c
+            textureatlas/texture_atlas.c
             chashmap_via_linked_list/linked_list_hashmap.c
             clinkedlistqueue/linked_list_queue.c
             cheap/heap.c
@@ -115,7 +116,8 @@ def build(bld):
                 )
 
 
-        unittest(bld,'test_texture_atlas.c')
+#        unittest(bld,'test_texture_atlas.c')
+
         bld.program(
 
                 source='demo.c',
