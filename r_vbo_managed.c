@@ -38,9 +38,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdbool.h>
 #include <string.h>
 #include "tea_vec.h"
-#include "r_draw.h"
-//#include <GL/gl.h>
 #include "SDL/SDL_opengl.h"
+#include "r_draw.h"
+#include "r_local.h"
+//#include <GL/gl.h>
 
 
 #include "heap.h"

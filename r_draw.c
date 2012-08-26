@@ -96,7 +96,6 @@ void ren_draw_set_camera(
 }
 
 /** for multi-render scenes */
-
 void ren_draw_set_context(
     ren_renderer_t * context
 )
@@ -120,6 +119,11 @@ static int __initOpenGL(
 
 #ifdef HAVE_GLEW
     glewInit();
+
+    if (!GLEW_VERSION_2_0) {
+        fprintf(stderr, "OpenGL 2.0 not available\n");
+        return 1;
+    }
 
     /* check if we have shader support */
     if (GLEW_ARB_vertex_shader && GLEW_ARB_fragment_shader)
@@ -156,11 +160,10 @@ static int __initOpenGL(
 #endif
 
 #if 1
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
 #else
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -168,13 +171,18 @@ static int __initOpenGL(
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 #endif
 
+//    glEnableClientState(GL_VERTEX_ARRAY);
+//    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
 //      glShadeModel(GL_SMOOTH);
 //      glDisable(GL_DEPTH_TEST);
 //      glPolygonMode(GL_FRONT, GL_FILL);
 //      glPolygonMode(GL_BACK, GL_LINE);
-//      glDisable(GL_CULL_FACE);
+      glDisable(GL_CULL_FACE);
 //      glDisable(GL_ARB_texture_non_power_of_two);
+//	glViewport(0, 0, in(rSys)->w, in(rSys)->h);
+
+    printf("Using: %s\n", glGetString(GL_VERSION));
 
     return 1;
 }
@@ -273,7 +281,7 @@ static int __initSDL_start(
     }
 #endif
 
-    in(rSys)->screen = SDL_SetVideoMode(640, 480, 32, video_flags);
+    in(rSys)->screen = SDL_SetVideoMode(in(rSys)->w, in(rSys)->h, 32, video_flags);
 
     return 0;
 }
@@ -338,7 +346,6 @@ void ren_frame_begin(
     glDisable(GL_DEPTH_TEST);
     glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
-
 }
 
 void ren_frame_end(
@@ -351,8 +358,8 @@ void ren_frame_end(
 }
 
 void ren_set_screensize(
-    int w,
-    int h
+    const int w,
+    const int h
 )
 {
     in(rSys)->w = w;
@@ -369,8 +376,7 @@ void ren_draw_init(
 
     rSys = calloc(1, sizeof(ren_renderer_t));
     rSys->in = calloc(1, sizeof(__ren_renderer_in_t));
-    in(rSys)->w = 600;
-    in(rSys)->h = 600;
+    ren_set_screensize(640,480);
 
     __initSDL_start(opengl, in(rSys)->w, in(rSys)->h, name);
 
@@ -382,7 +388,7 @@ void ren_draw_init(
     __initSDL_end();
 
     ren_medias_init();
-//    ren_rents_init();
+    ren_objs_init();
 }
 
 /*--------------------------------------------------------------79-characters-*/

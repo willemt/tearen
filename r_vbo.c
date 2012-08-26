@@ -34,9 +34,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdbool.h>
 #include <string.h>
 #include "tea_vec.h"
-#include "r_draw.h"
-//#include <GL/gl.h>
 #include "SDL/SDL_opengl.h"
+#include "r_draw.h"
+#include "r_local.h"
+//#include <GL/gl.h>
 //#include "r_opengl.h"
 
 #define BUFFER_OFFSET(i) ((char *)NULL + (i))
@@ -114,6 +115,18 @@ void ren_vbo_draw(
 //  glTexCoordPointer(2, GL_FLOAT, sizeof(ren_vertex_tc_t), BUFFER_OFFSET(12));
 
 //    glColorPointer(4, GL_UNSIGNED_BYTE, 0, BUFFER_OFFSET(16));
+
+#if 0
+    glVertexAttribPointer(
+        g_resources.attributes.position,  /* attribute */
+        2,                                /* size */
+        GL_FLOAT,                         /* type */
+        GL_FALSE,                         /* normalized? */
+        sizeof(GLfloat)*2,                /* stride */
+        (void*)0                          /* array buffer offset */
+    );
+    glEnableVertexAttribArray(g_resources.attributes.position);
+#endif
 
     glDrawArrays(GL_QUADS, 4 * start, 4 * n_elems);
 

@@ -88,10 +88,13 @@ def build(bld):
         bld.shlib(
             source="""
             r_draw.c
+            r_matrix.c
             r_media.c
             r_object.c
+            r_shader.c
             r_vbo.c
             r_vbo_managed.c
+            r_vbo_square_pw.c
             r_util.c
             test_tearen.c
             CuTest.c
