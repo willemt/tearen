@@ -357,7 +357,7 @@ static void __media_init_image(
 //        printf("MAXIMUM texture size: %d %d\n", w, h);
 
         __atlas =
-            ren_texture_atlas_init(512, __write_pixels_to_texture,
+            ren_texture_atlas_init(32, __write_pixels_to_texture,
                                    __create_blank_texture);
     }
 

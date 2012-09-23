@@ -76,7 +76,7 @@ unsigned int ren_shader_program(unsigned int vertex_shader,
     }
 
     glAttachShader(program, vertex_shader);
-    glAttachShader(program, fragment_shader);
+//    glAttachShader(program, fragment_shader);
     glLinkProgram(program);
 
     /* check success status of linking */

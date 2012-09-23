@@ -137,13 +137,19 @@ __media_texturecoords_2_gltexturecoords(const int media_id,
 {
     vec2_t begin, end;
 
-#if 1
+#if 0
     ren_media_get_texturecoords(media_id, begin, end);
     vec2Set(verts[0].tex, end[0], begin[1]);
     vec2Set(verts[1].tex, begin[0], begin[1]);
     vec2Set(verts[2].tex, begin[0], end[1]);
     vec2Set(verts[3].tex, end[0], end[1]);
 #else
+    /*
+    vec2Set(verts[0].tex, 0, 0.1);
+    vec2Set(verts[1].tex, 0.1, 0);
+    vec2Set(verts[2].tex, 0.1, 0.1);
+    vec2Set(verts[3].tex, 0, 0.1);
+    */
     vec2Set(verts[0].tex, 0, 1);
     vec2Set(verts[1].tex, 1, 1);
     vec2Set(verts[2].tex, 1, 0);
@@ -624,6 +630,7 @@ static long __ulong_compare(const void *e1, const void *e2)
 //      return !(*i1 == *i2); 
     return i1 - i2;
 }
+
 #if 0
 static void
 show_info_log(GLuint object,
@@ -640,8 +647,6 @@ show_info_log(GLuint object,
     free(log);
 }
 #endif
-
-
 
 /**
  * Object constructor
