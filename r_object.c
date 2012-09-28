@@ -92,6 +92,9 @@ typedef struct {
     int vbo_slot;
 } __bone_t;
 
+/**
+ * Canvas object
+ * This object's role is to draw other objects */
 typedef struct {
     arraylistf_t *children;
 } __canvas_t;
@@ -139,7 +142,7 @@ __media_texturecoords_2_gltexturecoords(const int media_id,
 {
     vec2_t begin, end;
 
-#if 0
+#if 1
     ren_media_get_texturecoords(media_id, begin, end);
     vec2Set(verts[0].tex, end[0], begin[1]);
     vec2Set(verts[1].tex, begin[0], begin[1]);
@@ -156,12 +159,12 @@ __media_texturecoords_2_gltexturecoords(const int media_id,
     vec2Set(verts[1].tex, 1, 1);
     vec2Set(verts[2].tex, 1, 0);
     vec2Set(verts[3].tex, 0, 0);
-#endif
 
     vec2Set(verts[0].tex, 0, 0);
     vec2Set(verts[1].tex, 0, 1);
     vec2Set(verts[2].tex, 1, 1);
     vec2Set(verts[3].tex, 1, 0);
+#endif
 }
 
 /*----------------------------------------------------------------------------*/
@@ -489,45 +492,23 @@ int ren_obj_set_org(ren_object_t * rob, vec2_t org)
 		   media_id, ren_media_get_texture(media_id), vbo,
 		   vbo_slot, w);
 #endif
-
 	    {
 		ren_vertex_tc_t verts[4];
-#if 1
-		vec3Clear(verts[0].pos);
-		vec3Clear(verts[1].pos);
-		vec3Clear(verts[2].pos);
-		vec3Clear(verts[3].pos);
-#else
-		vec3Set(verts[0].pos, org[0], org[1], 0);
-		vec3Set(verts[1].pos, org[0] + w, org[1], 0);
-		vec3Set(verts[2].pos, org[0] + w, org[1] + w, 0);
-		vec3Set(verts[3].pos, org[0], org[1] + w, 0);
-#endif
-//              __media_texturecoords_2_gltexturecoords(media_id, verts);
 
 		vec2Set(verts[0].pos, org[0], org[1]);
 		vec2Set(verts[1].pos, org[0] + w, org[1]);
 		vec2Set(verts[2].pos, org[0] + w, org[1] + w);
 		vec2Set(verts[3].pos, org[0], org[1] + w);
+#if 0
 		vec2Set(verts[0].tex, 1, 1);
 		vec2Set(verts[1].tex, 0, 1);
 		vec2Set(verts[2].tex, 0, 0);
 		vec2Set(verts[3].tex, 1, 0);
+#endif
+
+		__media_texturecoords_2_gltexturecoords(media_id, verts);
 		ren_vbosquare_item_set_vertices(vbo, vbo_slot, verts, 4);
 	    }
-
-#if 0
-	    {
-		ren_vertex_position_t vert[4];
-
-		vec2Set(vert[0].position, org[0], org[1]);
-		vec2Set(vert[1].position, org[0] + w, org[1]);
-		vec2Set(vert[2].position, org[0] + w, org[1] + w);
-		vec2Set(vert[3].position, org[0], org[1] + w);
-		ren_vbosquare_item_set_vertex_position(vbo, vbo_slot, vert,
-						       4);
-	    }
-#endif
 	}
 	break;
     default:
@@ -741,91 +722,27 @@ int ren_obj_draw(ren_object_t * rob)
     {
     case RENT_SQUARE:
 	{
-
+	    ren_mat4_t mat;
 	    int tex;
 
-	    tex = ren_media_get_texture(square(rob)->media);
-
-	    /* configure the state */
-//          glEnable(GL_TEXTURE_2D);
-
-//          glEnable(GL_BLEND);
-//          glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-#if 0
-	    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-	    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
-			    GL_LINEAR);
-	    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
-			    GL_LINEAR);
-	    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S,
-			    GL_CLAMP_TO_EDGE);
-	    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T,
-			    GL_CLAMP_TO_EDGE);
-#endif
-
-/*
-  glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    //gl.glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    */
-
-//        glEnable(GL_BLEND);
-//        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-//            glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
-	    //glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-
-
-
-
+            /* start using standard shader */
 	    glUseProgram(resources->program);
 
+            /* get the texture to use */
+	    tex = ren_media_get_texture(square(rob)->media);
+
 	    /* bind texture */
-	    //glBindTexture(GL_TEXTURE_2D, tex);
 	    glActiveTexture(GL_TEXTURE0);
 	    glBindTexture(GL_TEXTURE_2D, tex);
 	    glUniform1i(resources->attributes.texture, 0);
 
-	    ren_mat4_t mat;
-
+            /* set up the screen view */
 	    ren_mat4_projection(mat, 100.0, -1, 640.0, 0.0, 0.0, 480.0);
-
 	    glUniformMatrix4fv(resources->attributes.pmatrix, 1, GL_FALSE,
 			       mat);
 
-	    int vbo;
-
-	    vbo = __ren_obj_get_vbo(rob);
-
-
-	    {
-		vec2_t org;
-		int vbo_slot;
-		float w = (float) square(rob)->w;
-
-		vec2Copy(in(rob)->org, org);
-		vbo_slot = square(rob)->vbo_slot;
-
-		ren_vertex_tc_t verts[4];
-
-		vec2Clear(verts[0].pos);
-		vec2Clear(verts[1].pos);
-		vec2Clear(verts[2].pos);
-		vec2Clear(verts[3].pos);
-		vec2Set(verts[0].pos, org[0], org[1]);
-		vec2Set(verts[1].pos, org[0] + w, org[1]);
-		vec2Set(verts[2].pos, org[0] + w, org[1] + w);
-		vec2Set(verts[3].pos, org[0], org[1] + w);
-		vec2Set(verts[0].tex, 0, 0);
-		vec2Set(verts[1].tex, 1, 0);
-		vec2Set(verts[2].tex, 1, 1);
-		vec2Set(verts[3].tex, 0, 1);
-		ren_vbosquare_item_set_vertices(vbo, vbo_slot, verts, 4);
-	    }
-
-	    ren_vbosquare_draw_all(vbo,
+            /* draw the object */
+	    ren_vbosquare_draw_all(__ren_obj_get_vbo(rob),
 				   resources->attributes.position,
 				   resources->attributes.texcoord);
 
@@ -839,6 +756,7 @@ int ren_obj_draw(ren_object_t * rob)
 	{
 	    int ii;
 
+            /* draw all children */
 	    for (ii = 0; ii < arraylistf_count(canvas(rob)->children);
 		 ii++)
 	    {
@@ -880,12 +798,13 @@ void ren_objs_init()
 	resources = calloc(1, sizeof(__resources_t));
     }
 
-    vertex_shader = ren_shader("verts.vert.glsl");
-    fragment_shader = ren_shader("blue.frag.glsl");
+    /* load standard resources */
+
+    vertex_shader = ren_shader("default.vert.glsl");
+    fragment_shader = ren_shader("default.frag.glsl");
     resources->program =
 	ren_shader_program(vertex_shader, fragment_shader);
 
-#if 1
     resources->attributes.position =
 	glGetAttribLocation(resources->program, "position");
 
@@ -902,8 +821,6 @@ void ren_objs_init()
 	assert(0);
     }
 
-#endif
-
     resources->attributes.texture =
 	glGetUniformLocation(resources->program, "texture");
 
@@ -911,7 +828,7 @@ void ren_objs_init()
     {
 	assert(0);
     }
-#if 1
+
     resources->attributes.pmatrix =
 	glGetUniformLocation(resources->program, "pmatrix");
 
@@ -919,6 +836,4 @@ void ren_objs_init()
     {
 	assert(0);
     }
-#endif
-
 }
