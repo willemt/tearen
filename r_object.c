@@ -800,7 +800,7 @@ void ren_objs_init()
 
     /* load standard resources */
 
-    vertex_shader = ren_shader("default.vert.glsl");
+    vertex_shader = ren_shader("defaultt.vert.glsl");
     fragment_shader = ren_shader("default.frag.glsl");
     resources->program =
 	ren_shader_program(vertex_shader, fragment_shader);
