@@ -14,7 +14,7 @@ typedef struct media_s
     GLuint glImage;
 //      void*           surface;
 //      unsigned int    glImage;
-    char shader[255];           // max file name size
+//    char shader[255];           // max file name size
 //      int             tagnum;
     int lastx, lasty;           // coord for drawing bg quickly
     int w, h;

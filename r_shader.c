@@ -38,6 +38,24 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "linked_list_hashmap.h"
 #include "fixed_arraylist.h"
 
+void show_info_log(int obj)
+{
+    int infologLength = 0;
+    int charsWritten = 0;
+    char *infoLog;
+
+    glGetShaderiv(obj, GL_INFO_LOG_LENGTH, &infologLength);
+
+    if (infologLength > 0)
+    {
+	infoLog = (char *) malloc(infologLength);
+	glGetShaderInfoLog(obj, infologLength, &charsWritten, infoLog);
+
+	printf("%s\n", infoLog);
+	free(infoLog);
+    }
+}
+
 static char *file_contents(const char *filename, int *len_out)
 {
     char *buffer = 0;
@@ -76,7 +94,7 @@ unsigned int ren_shader_program(unsigned int vertex_shader,
     }
 
     glAttachShader(program, vertex_shader);
-//    glAttachShader(program, fragment_shader);
+    glAttachShader(program, fragment_shader);
     glLinkProgram(program);
 
     /* check success status of linking */
@@ -84,7 +102,7 @@ unsigned int ren_shader_program(unsigned int vertex_shader,
     if (!program_ok)
     {
 	fprintf(stderr, "Failed to link shader program:\n");
-//      show_info_log(program, glGetProgramiv, glGetProgramInfoLog);
+      show_info_log(program);//, glGetProgramiv, glGetProgramInfoLog);
 	glDeleteProgram(program);
 	return 0;
     }
@@ -112,10 +130,12 @@ unsigned int ren_shader(const char *filename)
     if (strstr(filename, ".vert."))
     {
 	type = GL_VERTEX_SHADER;
-    } else if (strstr(filename, ".frag."))
+    }
+    else if (strstr(filename, ".frag."))
     {
 	type = GL_FRAGMENT_SHADER;
-    } else
+    }
+    else
     {
 	assert(0);
     }
@@ -146,7 +166,7 @@ unsigned int ren_shader(const char *filename)
     if (!shader_ok)
     {
 	fprintf(stderr, "Failed to compile %s:\n", filename);
-//      show_info_log(shader, glGetShaderiv, glGetShaderInfoLog);
+	show_info_log(shader);//, glGetShaderiv, glGetShaderInfoLog);
 	glDeleteShader(shader);
 	exit(0);
 	return 0;

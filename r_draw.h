@@ -221,12 +221,8 @@ void *ren_medias_get(
     int idx
 );
 
-int ren_media_getOGLTex(
-    int idx
-);
-
 int ren_media_get(
-    char *fname
+    const char *fname
 );
 
 void ren_media_release(

@@ -102,14 +102,16 @@ unsigned int ren_vbosquare_init(const int n_elem)
     memset(verts, 0, size);
     glGenBuffers(1, &vb->vtxcoord);
     glBindBuffer(GL_ARRAY_BUFFER_ARB, vb->vtxcoord);
-    glBufferData(GL_ARRAY_BUFFER_ARB, size, verts, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER_ARB, size, verts, GL_DYNAMIC_DRAW);	//GL_STATIC_DRAW);
 
+#if 0
     /* position vertex attribute */
     size = sizeof(ren_vertex_position_t) * n_elem;
     memset(verts_pos, 0, size);
     glGenBuffers(1, &vb->vtxpos);
     glBindBuffer(GL_ARRAY_BUFFER, vb->vtxpos);
     glBufferData(GL_ARRAY_BUFFER, size, verts_pos, GL_DYNAMIC_DRAW);
+    #endif
 
     /* clean up */
     glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
@@ -130,7 +132,8 @@ int ren_vbosquare_new_itemslot(const int id)
     {
 	assert(vb->n_length_inuse < vb->n_elem);
 	return vb->n_length_inuse++;
-    } else
+    }
+    else
     {
 	unsigned long slot;
 
@@ -163,8 +166,7 @@ void ren_vbosquare_item_set_vertices(const int id,
 		       item_idx * size,	/*  memory location */
 		       size,	/*  size of data */
 		       verts);	/*  data */
-
-    /* clean up */
+/* clean up */
     glBindBufferARB(GL_ARRAY_BUFFER, 0);
 }
 
@@ -210,27 +212,20 @@ void ren_vbosquare_release_itemslot(const int id, const int slot_id)
     if (slot_id == vb->n_length_inuse)
     {
 	vb->n_length_inuse--;
-    } else
+    }
+    else
     {
 	heap_offer(vb->heap, (void *) (unsigned long) slot_id);
     }
 }
 
 void ren_vbosquare_draw(const int id, const int start, const int n_elems,
-			int attr_position)
+			int attr_position, int attr_texcoord)
 {
     vbo_t *vb = __get_vbo_from_id(id);
 
-    glBindBufferARB(GL_ARRAY_BUFFER, vb->vtxcoord);
-    glEnableClientState(GL_VERTEX_ARRAY);
-    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
-    /*  set pointer */
-    glTexCoordPointer(2, GL_FLOAT, sizeof(ren_vertex_tc_t),
-		      BUFFER_OFFSET(12));
-    glVertexPointer(3, GL_FLOAT, sizeof(ren_vertex_tc_t), 0);
-
-#if 1
+#if 0
     glBindBufferARB(GL_ARRAY_BUFFER, vb->vtxpos);
     glVertexAttribPointer(attr_position,	/* attribute */
 			  2,	/* size */
@@ -242,20 +237,45 @@ void ren_vbosquare_draw(const int id, const int start, const int n_elems,
     glEnableVertexAttribArray(attr_position);
 #endif
 
+    glBindBufferARB(GL_ARRAY_BUFFER, vb->vtxcoord);
+
+#if 0
+    glEnableClientState(GL_VERTEX_ARRAY);
+    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+
+    /*  set pointer */
+    glTexCoordPointer(2, GL_FLOAT, sizeof(ren_vertex_tc_t),
+		      BUFFER_OFFSET(12));
+    glVertexPointer(3, GL_FLOAT, sizeof(ren_vertex_tc_t), 0);
+#endif
+
+
+    /* vertex */
+    glVertexAttribPointer(attr_position, 2, GL_FLOAT, GL_FALSE,
+			  sizeof(ren_vertex_tc_t),
+			  (void *) offsetof(ren_vertex_tc_t, pos));
+    glEnableVertexAttribArray(attr_position);
+
+    /* texcoord */
+    glVertexAttribPointer(attr_texcoord, 2, GL_FLOAT, GL_FALSE,
+			  sizeof(ren_vertex_tc_t),
+			  (void *) offsetof(ren_vertex_tc_t, tex));
+    glEnableVertexAttribArray(attr_texcoord);
+
     glDrawArrays(GL_QUADS, 4 * start, 4 * n_elems);
 
     /* clean up */
-    glDisableClientState(GL_VERTEX_ARRAY);
-    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-    glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
     glDisableVertexAttribArray(attr_position);
+    glDisableVertexAttribArray(attr_texcoord);
+    glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
 }
 
-void ren_vbosquare_draw_all(const int id, int attr_position)
+void ren_vbosquare_draw_all(const int id, int attr_position,
+			    int attr_texcoord)
 {
     vbo_t *vb = __get_vbo_from_id(id);
 
-    ren_vbosquare_draw(id, 0, vb->n_elem, attr_position);
+    ren_vbosquare_draw(id, 0, vb->n_elem, attr_position, attr_texcoord);
 }
 
 void ren_vbosquares_init()

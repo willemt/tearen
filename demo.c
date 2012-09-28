@@ -18,9 +18,12 @@ int main(int argc, char **argv)
     ren_object_t *obs[1000];
     ren_object_t *canvas;
     int ii;
-
+    int media;
+    
     ren_draw_init(argv[0]);
     canvas = ren_obj_init(RENT_CANVAS);
+    media = ren_media_get("default.png");
+    media = ren_media_get("rss.png");
 
     for (ii = 0; ii < 10; ii++)
     {
@@ -29,13 +32,12 @@ int main(int argc, char **argv)
 	org[0] = (float)ii * 40;// / 100;
 	org[1] = (float)ii * 40;// / 100;
 	obs[ii] = ren_obj_init(RENT_SQUARE);
-	ren_obj_set_media(obs[ii], ren_media_get("default.png"));
-	ren_obj_set_w(obs[ii], 32);
-	ren_obj_set_h(obs[ii], 32);
+	ren_obj_set_media(obs[ii], media);
+	ren_obj_set_w(obs[ii], 64);
+	ren_obj_set_h(obs[ii], 64);
 	ren_obj_set_org(obs[ii], org);
 	ren_obj_set_parent(obs[ii], canvas);
     }
-
 
 
 #if 0

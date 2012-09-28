@@ -93,7 +93,7 @@ typedef struct {
 } __bone_t;
 
 typedef struct {
-    int vbo;
+    arraylistf_t *children;
 } __canvas_t;
 
 /*----------------------------------------------------------------------------*/
@@ -120,7 +120,9 @@ typedef struct {
     GLuint vertex_shader, program;
 
     struct {
+	GLint texcoord;
 	GLint position;
+	GLint texture;
 	GLint pmatrix;
     } attributes;
 
@@ -145,16 +147,21 @@ __media_texturecoords_2_gltexturecoords(const int media_id,
     vec2Set(verts[3].tex, end[0], end[1]);
 #else
     /*
-    vec2Set(verts[0].tex, 0, 0.1);
-    vec2Set(verts[1].tex, 0.1, 0);
-    vec2Set(verts[2].tex, 0.1, 0.1);
-    vec2Set(verts[3].tex, 0, 0.1);
-    */
+       vec2Set(verts[0].tex, 0, 0.1);
+       vec2Set(verts[1].tex, 0.1, 0);
+       vec2Set(verts[2].tex, 0.1, 0.1);
+       vec2Set(verts[3].tex, 0, 0.1);
+     */
     vec2Set(verts[0].tex, 0, 1);
     vec2Set(verts[1].tex, 1, 1);
     vec2Set(verts[2].tex, 1, 0);
     vec2Set(verts[3].tex, 0, 0);
 #endif
+
+    vec2Set(verts[0].tex, 0, 0);
+    vec2Set(verts[1].tex, 0, 1);
+    vec2Set(verts[2].tex, 1, 1);
+    vec2Set(verts[3].tex, 1, 0);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -496,10 +503,20 @@ int ren_obj_set_org(ren_object_t * rob, vec2_t org)
 		vec3Set(verts[2].pos, org[0] + w, org[1] + w, 0);
 		vec3Set(verts[3].pos, org[0], org[1] + w, 0);
 #endif
-		__media_texturecoords_2_gltexturecoords(media_id, verts);
+//              __media_texturecoords_2_gltexturecoords(media_id, verts);
+
+		vec2Set(verts[0].pos, org[0], org[1]);
+		vec2Set(verts[1].pos, org[0] + w, org[1]);
+		vec2Set(verts[2].pos, org[0] + w, org[1] + w);
+		vec2Set(verts[3].pos, org[0], org[1] + w);
+		vec2Set(verts[0].tex, 1, 1);
+		vec2Set(verts[1].tex, 0, 1);
+		vec2Set(verts[2].tex, 0, 0);
+		vec2Set(verts[3].tex, 1, 0);
 		ren_vbosquare_item_set_vertices(vbo, vbo_slot, verts, 4);
 	    }
 
+#if 0
 	    {
 		ren_vertex_position_t vert[4];
 
@@ -510,6 +527,7 @@ int ren_obj_set_org(ren_object_t * rob, vec2_t org)
 		ren_vbosquare_item_set_vertex_position(vbo, vbo_slot, vert,
 						       4);
 	    }
+#endif
 	}
 	break;
     default:
@@ -672,6 +690,7 @@ ren_object_t *ren_obj_init(const int type)
 	break;
     case RENT_CANVAS:
 	in(rob)->typedata = calloc(1, sizeof(__canvas_t));
+	canvas(rob)->children = arraylistf_new();
 	break;
     default:
 	assert(false);
@@ -700,7 +719,7 @@ int ren_obj_init_ptr(ren_object_t ** rob, const int type)
 /*----------------------------------------------------------------------------*/
 void ren_obj_add_child(ren_object_t * rob, ren_object_t * child)
 {
-    canvas(rob)->vbo = __ren_obj_get_vbo(child);
+    arraylistf_add(canvas(rob)->children, child);
 }
 
 void ren_obj_remove_child(ren_object_t * rob, ren_object_t * child)
@@ -716,39 +735,121 @@ void ren_obj_remove_child(ren_object_t * rob, ren_object_t * child)
  * */
 int ren_obj_draw(ren_object_t * rob)
 {
-//    assert(false);
+    assert(rob);
 
     switch (in(rob)->type)
     {
-    case RENT_CANVAS:
-	/* configure the state */
-	glEnable(GL_TEXTURE_2D);
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-	glBindTexture(GL_TEXTURE_2D, 1);
+    case RENT_SQUARE:
+	{
 
-	glUseProgram(resources->program);
+	    int tex;
 
-	ren_mat4_t mat;
+	    tex = ren_media_get_texture(square(rob)->media);
 
-	ren_mat4_projection(mat, 100.0, -1, 640.0, 0.0, 0.0, 480.0);
+	    /* configure the state */
+//          glEnable(GL_TEXTURE_2D);
 
-#if 1
-	glUniformMatrix4fv(resources->attributes.pmatrix, 1, GL_FALSE,
-			   mat);
-#endif
+//          glEnable(GL_BLEND);
+//          glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 #if 0
-	ren_vbom_draw_all(canvas(rob)->vbo);
-#else
-	ren_vbosquare_draw_all(canvas(rob)->vbo,
-			       resources->attributes.position);
+	    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+	    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
+			    GL_LINEAR);
+	    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
+			    GL_LINEAR);
+	    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S,
+			    GL_CLAMP_TO_EDGE);
+	    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T,
+			    GL_CLAMP_TO_EDGE);
 #endif
 
-	/* clean up */
-	glBindTexture(GL_TEXTURE_2D, 0);
-	glUseProgram(0);
+/*
+  glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    //gl.glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    */
+
+//        glEnable(GL_BLEND);
+//        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+//            glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
+	    //glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+
+
+
+
+	    glUseProgram(resources->program);
+
+	    /* bind texture */
+	    //glBindTexture(GL_TEXTURE_2D, tex);
+	    glActiveTexture(GL_TEXTURE0);
+	    glBindTexture(GL_TEXTURE_2D, tex);
+	    glUniform1i(resources->attributes.texture, 0);
+
+	    ren_mat4_t mat;
+
+	    ren_mat4_projection(mat, 100.0, -1, 640.0, 0.0, 0.0, 480.0);
+
+	    glUniformMatrix4fv(resources->attributes.pmatrix, 1, GL_FALSE,
+			       mat);
+
+	    int vbo;
+
+	    vbo = __ren_obj_get_vbo(rob);
+
+
+	    {
+		vec2_t org;
+		int vbo_slot;
+		float w = (float) square(rob)->w;
+
+		vec2Copy(in(rob)->org, org);
+		vbo_slot = square(rob)->vbo_slot;
+
+		ren_vertex_tc_t verts[4];
+
+		vec2Clear(verts[0].pos);
+		vec2Clear(verts[1].pos);
+		vec2Clear(verts[2].pos);
+		vec2Clear(verts[3].pos);
+		vec2Set(verts[0].pos, org[0], org[1]);
+		vec2Set(verts[1].pos, org[0] + w, org[1]);
+		vec2Set(verts[2].pos, org[0] + w, org[1] + w);
+		vec2Set(verts[3].pos, org[0], org[1] + w);
+		vec2Set(verts[0].tex, 0, 0);
+		vec2Set(verts[1].tex, 1, 0);
+		vec2Set(verts[2].tex, 1, 1);
+		vec2Set(verts[3].tex, 0, 1);
+		ren_vbosquare_item_set_vertices(vbo, vbo_slot, verts, 4);
+	    }
+
+	    ren_vbosquare_draw_all(vbo,
+				   resources->attributes.position,
+				   resources->attributes.texcoord);
+
+	    /* clean up */
+	    glBindTexture(GL_TEXTURE_2D, 0);
+	    glUseProgram(0);
+	}
+	break;
+    case RENT_CANVAS:
+
+	{
+	    int ii;
+
+	    for (ii = 0; ii < arraylistf_count(canvas(rob)->children);
+		 ii++)
+	    {
+		ren_object_t *child;
+
+		child = arraylistf_get(canvas(rob)->children, ii);
+
+		ren_obj_draw(child);
+	    }
+
+	}
 
 	break;
     default:
@@ -781,7 +882,8 @@ void ren_objs_init()
 
     vertex_shader = ren_shader("verts.vert.glsl");
     fragment_shader = ren_shader("blue.frag.glsl");
-    resources->program = ren_shader_program(vertex_shader, fragment_shader);
+    resources->program =
+	ren_shader_program(vertex_shader, fragment_shader);
 
 #if 1
     resources->attributes.position =
@@ -791,8 +893,24 @@ void ren_objs_init()
     {
 	assert(0);
     }
+
+    resources->attributes.texcoord =
+	glGetAttribLocation(resources->program, "texcoord");
+
+    if (resources->attributes.texcoord == -1)
+    {
+	assert(0);
+    }
+
 #endif
 
+    resources->attributes.texture =
+	glGetUniformLocation(resources->program, "texture");
+
+    if (resources->attributes.texture == -1)
+    {
+	assert(0);
+    }
 #if 1
     resources->attributes.pmatrix =
 	glGetUniformLocation(resources->program, "pmatrix");

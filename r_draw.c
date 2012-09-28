@@ -73,8 +73,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ren_renderer_t *rSys = NULL;
 
-typedef struct
-{
+typedef struct {
     bool testgrid;
     SDL_Surface *screen;
     int w;
@@ -86,24 +85,19 @@ typedef struct
 
 /**
  * set the renderer's camera */
-void ren_draw_set_camera(
-    vec2_t camera_orig,
-    vec2_t camera_targ
-)
+void ren_draw_set_camera(vec2_t camera_orig, vec2_t camera_targ)
 {
     vec2Copy(camera_orig, rSys->cameraOrg);
     vec2Copy(camera_targ, rSys->cameraTarg);
 }
 
 /** for multi-render scenes */
-void ren_draw_set_context(
-    ren_renderer_t * context
-)
+void ren_draw_set_context(ren_renderer_t * context)
 {
     rSys = context;
     if (NULL == rSys->in)
     {
-        rSys->in = calloc(1, sizeof(__ren_renderer_in_t));
+	rSys->in = calloc(1, sizeof(__ren_renderer_in_t));
     }
 }
 
@@ -111,8 +105,7 @@ void ren_draw_set_context(
 
 /*  
  *  @return 0 on error; 1 otherwise*/
-static int __initOpenGL(
-)
+static int __initOpenGL()
 {
 //      GL_ARB_fragment_shader 
 //      GL_ARB_vertex_shader
@@ -120,9 +113,10 @@ static int __initOpenGL(
 #ifdef HAVE_GLEW
     glewInit();
 
-    if (!GLEW_VERSION_2_0) {
-        fprintf(stderr, "OpenGL 2.0 not available\n");
-        return 1;
+    if (!GLEW_VERSION_2_0)
+    {
+	fprintf(stderr, "OpenGL 2.0 not available\n");
+	return 1;
     }
 
     /* check if we have shader support */
@@ -138,20 +132,20 @@ static int __initOpenGL(
     /*  check if we can do point sprites */
     if (glewGetExtension("GL_ARB_point_sprite"))
     {
-        float maxSize = 0.0f;
+	float maxSize = 0.0f;
 
-        /*  find out what the max point sprite size is */
-        glGetFloatv(GL_POINT_SIZE_MAX_ARB, &maxSize);
+	/*  find out what the max point sprite size is */
+	glGetFloatv(GL_POINT_SIZE_MAX_ARB, &maxSize);
 
-        if (maxSize < 32)
-        {
+	if (maxSize < 32)
+	{
 
-        }
-        else
-        {
+	}
+	else
+	{
 //              glPointSize(maxSize);
 //              rSysi->have_point_sprite = TRUE;
-        }
+	}
     }
 
 #else
@@ -159,6 +153,7 @@ static int __initOpenGL(
 
 #endif
 
+#if 0
 #if 1
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -170,39 +165,40 @@ static int __initOpenGL(
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 #endif
+#endif
 
-//    glEnableClientState(GL_VERTEX_ARRAY);
-//    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+//    glEnable(GL_TEXTURE_2D);
+//    glDisable(GL_DEPTH_TEST);
+    glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+//    glClearDepth(1.0f);
+//    glShadeModel(GL_SMOOTH);
+//    glEnable(GL_DEPTH_TEST);
+//    glDepthFunc(GL_LEQUAL);
 
-//      glShadeModel(GL_SMOOTH);
-//      glDisable(GL_DEPTH_TEST);
-//      glPolygonMode(GL_FRONT, GL_FILL);
-//      glPolygonMode(GL_BACK, GL_LINE);
-      glDisable(GL_CULL_FACE);
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_CULL_FACE);
 //      glDisable(GL_ARB_texture_non_power_of_two);
-//	glViewport(0, 0, in(rSys)->w, in(rSys)->h);
 
     printf("Using: %s\n", glGetString(GL_VERSION));
 
     return 1;
 }
 
-static int __initSDL_end(
-)
+static int __initSDL_end()
 {
     /* If we fail, return error. */
     if (in(rSys)->screen == NULL)
     {
-        //fprintf(stderr, ERR_S"Unable to set up video: %s\n", SDL_GetError());
-        printf(ERR_S "Unable to set up video: %s\n", SDL_GetError());
-        exit(1);
+	//fprintf(stderr, ERR_S"Unable to set up video: %s\n", SDL_GetError());
+	printf(ERR_S "Unable to set up video: %s\n", SDL_GetError());
+	exit(1);
     }
 
     /*  check if the main surface is a hardware surface */
     if (1 == (in(rSys)->screen->flags & SDL_HWSURFACE))
     {
-        printf(ERR_S "Can't get hardware surface\n");
-        exit(1);
+	printf(ERR_S "Can't get hardware surface\n");
+	exit(1);
     }
 
     /*  check if we have a double buffer */
@@ -218,8 +214,7 @@ static int __initSDL_end(
     return 0;
 }
 
-static void __vid_info(
-)
+static void __vid_info()
 {
 /*
 	vinfo = SDL_GetVideoInfo() ;
@@ -241,12 +236,8 @@ static void __vid_info(
 */
 }
 
-static int __initSDL_start(
-    const bool opengl,
-    const int w,
-    const int h,
-    const char *name
-)
+static int __initSDL_start(const bool opengl,
+			   const int w, const int h, const char *name)
 {
     int video_flags = 0;
 
@@ -254,8 +245,8 @@ static int __initSDL_start(
 
     if (SDL_Init(SDL_INIT_VIDEO) < 0)
     {
-        fprintf(stderr, "Couldn't initialize SDL: %s\n", SDL_GetError());
-        exit(2);
+	fprintf(stderr, "Couldn't initialize SDL: %s\n", SDL_GetError());
+	exit(2);
     }
 
 #if 0
@@ -272,16 +263,17 @@ static int __initSDL_start(
 #if 0
     if (opengl)
     {
-        // TODO: add fullscreen
-        /* Enable double buffering */
-        SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-        video_flags |= R_SDL_SCREENFLAGS;
-        //video_flags |= SDL_FULLSCREEN;
-        //video_flags |= SDL_RESIZABLE
+	// TODO: add fullscreen
+	/* Enable double buffering */
+	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+	video_flags |= R_SDL_SCREENFLAGS;
+	//video_flags |= SDL_FULLSCREEN;
+	//video_flags |= SDL_RESIZABLE
     }
 #endif
 
-    in(rSys)->screen = SDL_SetVideoMode(in(rSys)->w, in(rSys)->h, 32, video_flags);
+    in(rSys)->screen =
+	SDL_SetVideoMode(in(rSys)->w, in(rSys)->h, 32, video_flags);
 
     return 0;
 }
@@ -289,78 +281,67 @@ static int __initSDL_start(
 /*----------------------------------------------------------------SET METHODS */
 
 /** Set Renderer options/flags */
-void ren_draw_enable(
-    const int flag
-)
+void ren_draw_enable(const int flag)
 {
     switch (flag)
     {
     case R_FULLSCREEN:
-        {       /* set to full screen */
-            int video_flags = R_SDL_SCREENFLAGS | SDL_FULLSCREEN;
+	{			/* set to full screen */
+	    int video_flags = R_SDL_SCREENFLAGS | SDL_FULLSCREEN;
 
 //            in(rSys)->screen = SDL_SetVideoMode(w, in(rSys)->h, 32, video_flags);
 
 #if defined(__TEA_WIN32__)
-            __initOpenGL();
+	    __initOpenGL();
 #endif
-        }
-        break;
+	}
+	break;
     case R_TESTGRID:
-        in(rSys)->testgrid = true;
-        break;
+	in(rSys)->testgrid = true;
+	break;
     }
 }
 
-void ren_draw_disable(
-    const int flag
-)
+void ren_draw_disable(const int flag)
 {
     switch (flag)
     {
     case R_FULLSCREEN:
-        {       /* set to full screen */
-            int video_flags;
+	{			/* set to full screen */
+	    int video_flags;
 
-            video_flags = R_SDL_SCREENFLAGS;
+	    video_flags = R_SDL_SCREENFLAGS;
 
 //            in(rSys)->screen = SDL_SetVideoMode(in(rSys)->w, in(rSys)->h, 32, video_flags);
 #if defined(__TEA_WIN32__)
-            __initOpenGL();
+	    __initOpenGL();
 #endif
-        }
-        break;
+	}
+	break;
     case R_TESTGRID:
-        in(rSys)->testgrid = false;
-        break;
+	in(rSys)->testgrid = false;
+	break;
     }
 }
 
 /*------------------------------------------------------- ACTUAL DRAW METHODS */
 
 /** zero the marker */
-void ren_frame_begin(
-    void
-)
+void ren_frame_begin(void
+    )
 {
-    glDisable(GL_DEPTH_TEST);
-    glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 }
 
-void ren_frame_end(
-    void
-)
+void ren_frame_end(void
+    )
 {
     SDL_GL_SwapBuffers();
 //    glFlush();
 //    glutSwapBuffers();
 }
 
-void ren_set_screensize(
-    const int w,
-    const int h
-)
+void ren_set_screensize(const int w, const int h)
 {
     in(rSys)->w = w;
     in(rSys)->h = h;
@@ -368,21 +349,19 @@ void ren_set_screensize(
 
 /**
  * init the renderer sub system */
-void ren_draw_init(
-    char *name
-)
+void ren_draw_init(char *name)
 {
     bool opengl = true;
 
     rSys = calloc(1, sizeof(ren_renderer_t));
     rSys->in = calloc(1, sizeof(__ren_renderer_in_t));
-    ren_set_screensize(640,480);
+    ren_set_screensize(640, 480);
 
     __initSDL_start(opengl, in(rSys)->w, in(rSys)->h, name);
 
     if (opengl)
     {
-        __initOpenGL();
+	__initOpenGL();
     }
 
     __initSDL_end();

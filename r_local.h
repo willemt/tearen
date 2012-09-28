@@ -1,8 +1,8 @@
 
 typedef struct
 {
-    float pos[3];
-    float tex[2];
+    GLfloat pos[2];
+    GLfloat tex[2];
 } ren_vertex_tc_t;
 
 typedef struct {
