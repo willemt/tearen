@@ -45,6 +45,7 @@ typedef enum
     RENT_BEAM,
     RENT_ARCHIVE,               // display list 
     RENT_CANVAS,
+    RENT_SQUARE_VBO,
 } r_enttype_e;
 
 typedef struct

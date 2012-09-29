@@ -49,6 +49,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //#include <opengl/OpenGL.h>
 #include "linked_list_hashmap.h"
 #include "fixed_arraylist.h"
+#include "heap.h"
 
 typedef void (*gl_value_func) (GLuint shader, GLenum pname,
 			       GLint * params);
@@ -97,7 +98,30 @@ typedef struct {
  * This object's role is to draw other objects */
 typedef struct {
     arraylistf_t *children;
+    /* Use this heap for ordering the way we draw robs
+       It isn't critical that the ordering of robs is perfect.  */
+    heap_t *draw_heap;
+    /* use this heap for offloading the robs that we draw */
+    heap_t *offload_heap;
 } __canvas_t;
+
+/**
+ * Square vbo object
+ * This object's role is to draw squares */
+typedef struct {
+    int media;
+    int vbo;
+} __square_vbo_t;
+
+/*----------------------------------------------------------------------------*/
+
+/**
+ * Current state of the renderer */
+typedef struct {
+
+    // TODO
+
+} r_object_render_state_t;
 
 /*----------------------------------------------------------------------------*/
 
@@ -106,10 +130,10 @@ typedef struct {
 #define rect(x) ((__rect_t*)in(x)->typedata)
 #define bone(x) ((__bone_t*)in(x)->typedata)
 #define canvas(x) ((__canvas_t*)in(x)->typedata)
+#define squarevbo(x) ((__square_vbo_t*)in(x)->typedata)
 
 /** default size of each VBO */
 #define VBO_ELEM_SIZE 1000
-
 
 /** Internal list of objects */
 static arraylistf_t *__robj_list = NULL;
@@ -134,6 +158,22 @@ typedef struct {
 static __resources_t *resources = NULL;
 
 /*----------------------------------------------------------------------------*/
+
+/**
+ * Sort robs by the most effective drawing path */
+static int __cmp_robs_to_draw(const void *o1,
+			      const void *o2, const void *udata)
+{
+    const ren_object_t *r1 = o1, *r2 = o2;
+
+    int t1, t2;
+
+    t1 = ren_media_get_texture(ren_obj_get_media(r1));
+    t2 = ren_media_get_texture(ren_obj_get_media(r2));
+
+    return t1 - t2;
+}
+
 /**
  * Set verts with the texture coordinates for this media_id */
 static void
@@ -142,29 +182,11 @@ __media_texturecoords_2_gltexturecoords(const int media_id,
 {
     vec2_t begin, end;
 
-#if 1
     ren_media_get_texturecoords(media_id, begin, end);
     vec2Set(verts[0].tex, end[0], begin[1]);
     vec2Set(verts[1].tex, begin[0], begin[1]);
     vec2Set(verts[2].tex, begin[0], end[1]);
     vec2Set(verts[3].tex, end[0], end[1]);
-#else
-    /*
-       vec2Set(verts[0].tex, 0, 0.1);
-       vec2Set(verts[1].tex, 0.1, 0);
-       vec2Set(verts[2].tex, 0.1, 0.1);
-       vec2Set(verts[3].tex, 0, 0.1);
-     */
-    vec2Set(verts[0].tex, 0, 1);
-    vec2Set(verts[1].tex, 1, 1);
-    vec2Set(verts[2].tex, 1, 0);
-    vec2Set(verts[3].tex, 0, 0);
-
-    vec2Set(verts[0].tex, 0, 0);
-    vec2Set(verts[1].tex, 0, 1);
-    vec2Set(verts[2].tex, 1, 1);
-    vec2Set(verts[3].tex, 1, 0);
-#endif
 }
 
 /*----------------------------------------------------------------------------*/
@@ -368,10 +390,10 @@ int ren_obj_get_media(ren_object_t * rob)
     case RENT_SQUARE:
     case RENT_SQUARE_CENTER:
 	return square(rob)->media;
-	break;
     case RENT_RECT:
 	return rect(rob)->media;
-	break;
+    case RENT_SQUARE_VBO:
+	return rect(rob)->media;
     default:
 	assert(false);
 	return 0;
@@ -475,9 +497,7 @@ int ren_obj_set_org(ren_object_t * rob, vec2_t org)
     case RENT_SQUARE:
     case RENT_SQUARE_CENTER:
 	{
-	    int vbo, vbo_slot;
-
-	    int media_id;
+	    int vbo, vbo_slot, media_id;
 
 	    float w = (float) square(rob)->w;
 
@@ -506,7 +526,10 @@ int ren_obj_set_org(ren_object_t * rob, vec2_t org)
 		vec2Set(verts[3].tex, 1, 0);
 #endif
 
+                /* set texture coordinates */
 		__media_texturecoords_2_gltexturecoords(media_id, verts);
+
+                /* commit changes to vbo */
 		ren_vbosquare_item_set_vertices(vbo, vbo_slot, verts, 4);
 	    }
 	}
@@ -672,6 +695,11 @@ ren_object_t *ren_obj_init(const int type)
     case RENT_CANVAS:
 	in(rob)->typedata = calloc(1, sizeof(__canvas_t));
 	canvas(rob)->children = arraylistf_new();
+	canvas(rob)->draw_heap = heap_new(__cmp_robs_to_draw, NULL);
+	canvas(rob)->offload_heap = heap_new(__cmp_robs_to_draw, NULL);
+	break;
+    case RENT_SQUARE_VBO:
+	in(rob)->typedata = calloc(1, sizeof(__square_vbo_t));
 	break;
     default:
 	assert(false);
@@ -700,7 +728,27 @@ int ren_obj_init_ptr(ren_object_t ** rob, const int type)
 /*----------------------------------------------------------------------------*/
 void ren_obj_add_child(ren_object_t * rob, ren_object_t * child)
 {
-    arraylistf_add(canvas(rob)->children, child);
+    switch (in(rob)->type)
+    {
+    case RENT_CANVAS:
+	arraylistf_add(canvas(rob)->children, child);
+
+	if (in(child)->type == RENT_SQUARE)
+	{
+	    ren_object_t *new;
+
+	    new = ren_obj_init(RENT_SQUARE_VBO);
+	    squarevbo(new)->media = ren_obj_get_media(child);
+	    squarevbo(new)->vbo =
+		__get_vbo_from_texture(ren_media_get_texture
+				       (squarevbo(new)->media));
+	    heap_offer(canvas(rob)->draw_heap, new);
+	}
+	break;
+    default:
+	assert(false);
+    }
+
 }
 
 void ren_obj_remove_child(ren_object_t * rob, ren_object_t * child)
@@ -722,27 +770,33 @@ int ren_obj_draw(ren_object_t * rob)
     {
     case RENT_SQUARE:
 	{
+	}
+	break;
+    case RENT_SQUARE_VBO:
+	{
 	    ren_mat4_t mat;
 	    int tex;
 
-            /* start using standard shader */
+	    printf("drawing vbo\n");
+
+	    /* start using standard shader */
 	    glUseProgram(resources->program);
 
-            /* get the texture to use */
-	    tex = ren_media_get_texture(square(rob)->media);
+	    /* get the texture to use */
+	    tex = ren_media_get_texture(squarevbo(rob)->media);
 
 	    /* bind texture */
 	    glActiveTexture(GL_TEXTURE0);
 	    glBindTexture(GL_TEXTURE_2D, tex);
 	    glUniform1i(resources->attributes.texture, 0);
 
-            /* set up the screen view */
+	    /* set up the screen view */
 	    ren_mat4_projection(mat, 100.0, -1, 640.0, 0.0, 0.0, 480.0);
 	    glUniformMatrix4fv(resources->attributes.pmatrix, 1, GL_FALSE,
 			       mat);
 
-            /* draw the object */
-	    ren_vbosquare_draw_all(__ren_obj_get_vbo(rob),
+	    /* draw the object */
+	    ren_vbosquare_draw_all(__get_vbo_from_texture(tex),
 				   resources->attributes.position,
 				   resources->attributes.texcoord);
 
@@ -754,19 +808,36 @@ int ren_obj_draw(ren_object_t * rob)
     case RENT_CANVAS:
 
 	{
+#if 0
 	    int ii;
 
-            /* draw all children */
+	    /* draw all children */
 	    for (ii = 0; ii < arraylistf_count(canvas(rob)->children);
 		 ii++)
-	    {
-		ren_object_t *child;
+#endif
 
-		child = arraylistf_get(canvas(rob)->children, ii);
+		do
+		{
+		    ren_object_t *child;
 
-		ren_obj_draw(child);
-	    }
+		    child = heap_poll(canvas(rob)->draw_heap);
 
+		    if (!child)
+			break;
+
+		    heap_offer(canvas(rob)->offload_heap, child);
+		    //child = arraylistf_get(canvas(rob)->children, ii);
+
+		    ren_obj_draw(child);
+		}
+		while (1);
+
+	    void *heap_swapped;
+
+	    /* swap heaps so that we don't have to copy memory */
+	    heap_swapped = canvas(rob)->offload_heap;
+	    canvas(rob)->offload_heap = canvas(rob)->draw_heap;
+	    canvas(rob)->draw_heap = heap_swapped;
 	}
 
 	break;
@@ -800,7 +871,7 @@ void ren_objs_init()
 
     /* load standard resources */
 
-    vertex_shader = ren_shader("defaultt.vert.glsl");
+    vertex_shader = ren_shader("default.vert.glsl");
     fragment_shader = ren_shader("default.frag.glsl");
     resources->program =
 	ren_shader_program(vertex_shader, fragment_shader);
