@@ -55,7 +55,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #define ERR_S "error"
 
-static void* __atlas = NULL;
+static void *__atlas = NULL;
 
 
 /* Only allow this thread to do graphics.
@@ -292,7 +292,7 @@ static SDL_Surface *__load_image(const char *fname, int *w, int *h)
     return surf;
 }
 
-static void __write_pixels_to_texture(const void* pixels,
+static void __write_pixels_to_texture(const void *pixels,
 				      const rect_t * rect,
 				      const unsigned int texture)
 {
@@ -381,6 +381,9 @@ int ren_media_get(const char *fname)
     else
     {
 	media = __register_media(fname);
+
+	/* Set up media's ID
+	   Note: we aren't zero based */
 	idx = 1 + arraylistf_add(__mediaList, media);
 	media->id = idx;
     }

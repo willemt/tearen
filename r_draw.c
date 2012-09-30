@@ -355,7 +355,7 @@ void ren_draw_init(char *name)
 
     rSys = calloc(1, sizeof(ren_renderer_t));
     rSys->in = calloc(1, sizeof(__ren_renderer_in_t));
-    ren_set_screensize(640, 480);
+    ren_set_screensize(960, 640);
 
     __initSDL_start(opengl, in(rSys)->w, in(rSys)->h, name);
 

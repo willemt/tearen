@@ -103,6 +103,9 @@ typedef struct {
     heap_t *draw_heap;
     /* use this heap for offloading the robs that we draw */
     heap_t *offload_heap;
+
+    /* dictionary of VBO IDs to squarevbo robs */
+    hashmap_t *vbo_map;
 } __canvas_t;
 
 /**
@@ -170,6 +173,14 @@ static int __cmp_robs_to_draw(const void *o1,
 
     t1 = ren_media_get_texture(ren_obj_get_media(r1));
     t2 = ren_media_get_texture(ren_obj_get_media(r2));
+
+    /* compare textures */
+    if (0 == t1 - t2)
+    {
+	/* equality testing:
+	   compare against IDs */
+	return in(r1)->id - in(r2)->id;
+    }
 
     return t1 - t2;
 }
@@ -526,10 +537,10 @@ int ren_obj_set_org(ren_object_t * rob, vec2_t org)
 		vec2Set(verts[3].tex, 1, 0);
 #endif
 
-                /* set texture coordinates */
+		/* set texture coordinates */
 		__media_texturecoords_2_gltexturecoords(media_id, verts);
 
-                /* commit changes to vbo */
+		/* commit changes to vbo */
 		ren_vbosquare_item_set_vertices(vbo, vbo_slot, verts, 4);
 	    }
 	}
@@ -697,6 +708,7 @@ ren_object_t *ren_obj_init(const int type)
 	canvas(rob)->children = arraylistf_new();
 	canvas(rob)->draw_heap = heap_new(__cmp_robs_to_draw, NULL);
 	canvas(rob)->offload_heap = heap_new(__cmp_robs_to_draw, NULL);
+	canvas(rob)->vbo_map = hashmap_new(__ulong_hash, __ulong_compare);
 	break;
     case RENT_SQUARE_VBO:
 	in(rob)->typedata = calloc(1, sizeof(__square_vbo_t));
@@ -735,14 +747,26 @@ void ren_obj_add_child(ren_object_t * rob, ren_object_t * child)
 
 	if (in(child)->type == RENT_SQUARE)
 	{
+	    long child_vbo;
 	    ren_object_t *new;
 
+	    /* get child rob's vbo */
+	    child_vbo =
+		__get_vbo_from_texture(ren_media_get_texture
+				       (square(child)->media));
+
+	    /* check if we already have a rob for this vbo */
+	    if (hashmap_get(canvas(rob)->vbo_map, (void*)child_vbo))
+	    {
+		return;
+	    }
+
+	    /* create a rob for this vbo */
 	    new = ren_obj_init(RENT_SQUARE_VBO);
 	    squarevbo(new)->media = ren_obj_get_media(child);
-	    squarevbo(new)->vbo =
-		__get_vbo_from_texture(ren_media_get_texture
-				       (squarevbo(new)->media));
+	    squarevbo(new)->vbo = child_vbo;
 	    heap_offer(canvas(rob)->draw_heap, new);
+	    hashmap_put(canvas(rob)->vbo_map, (void*)child_vbo, new);
 	}
 	break;
     default:
@@ -777,8 +801,6 @@ int ren_obj_draw(ren_object_t * rob)
 	    ren_mat4_t mat;
 	    int tex;
 
-	    printf("drawing vbo\n");
-
 	    /* start using standard shader */
 	    glUseProgram(resources->program);
 
@@ -791,7 +813,7 @@ int ren_obj_draw(ren_object_t * rob)
 	    glUniform1i(resources->attributes.texture, 0);
 
 	    /* set up the screen view */
-	    ren_mat4_projection(mat, 100.0, -1, 640.0, 0.0, 0.0, 480.0);
+	    ren_mat4_projection(mat, 100.0, -1, 960.0, 0.0, 0.0, 640.0);
 	    glUniformMatrix4fv(resources->attributes.pmatrix, 1, GL_FALSE,
 			       mat);
 
