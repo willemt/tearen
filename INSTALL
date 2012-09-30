@@ -1,0 +1,5 @@
+
+Type make to compile. This should install waf which is used as the build system. The waf script will pull some dependencies from Github.
+
+On Debian/Ubuntu you should install the following packages:
+#apt-get install libsdl1.2-dev libsdl-image1.2-dev
