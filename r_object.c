@@ -756,7 +756,7 @@ void ren_obj_add_child(ren_object_t * rob, ren_object_t * child)
 				       (square(child)->media));
 
 	    /* check if we already have a rob for this vbo */
-	    if (hashmap_get(canvas(rob)->vbo_map, (void*)child_vbo))
+	    if (hashmap_get(canvas(rob)->vbo_map, (void *) child_vbo))
 	    {
 		return;
 	    }
@@ -766,7 +766,7 @@ void ren_obj_add_child(ren_object_t * rob, ren_object_t * child)
 	    squarevbo(new)->media = ren_obj_get_media(child);
 	    squarevbo(new)->vbo = child_vbo;
 	    heap_offer(canvas(rob)->draw_heap, new);
-	    hashmap_put(canvas(rob)->vbo_map, (void*)child_vbo, new);
+	    hashmap_put(canvas(rob)->vbo_map, (void *) child_vbo, new);
 	}
 	break;
     default:
@@ -836,23 +836,28 @@ int ren_obj_draw(ren_object_t * rob)
 	    /* draw all children */
 	    for (ii = 0; ii < arraylistf_count(canvas(rob)->children);
 		 ii++)
+	    {
+		child = arraylistf_get(canvas(rob)->children, ii);
+	    }
 #endif
 
-		do
-		{
-		    ren_object_t *child;
+	    do
+	    {
+		ren_object_t *child;
 
-		    child = heap_poll(canvas(rob)->draw_heap);
+		/* get the next best object to draw */
+		child = heap_poll(canvas(rob)->draw_heap);
 
-		    if (!child)
-			break;
+		if (!child)
+		    break;
 
-		    heap_offer(canvas(rob)->offload_heap, child);
-		    //child = arraylistf_get(canvas(rob)->children, ii);
+		/* offload to secondary heap */
+		heap_offer(canvas(rob)->offload_heap, child);
 
-		    ren_obj_draw(child);
-		}
-		while (1);
+                /* draw the object */
+		ren_obj_draw(child);
+	    }
+	    while (1);
 
 	    void *heap_swapped;
 

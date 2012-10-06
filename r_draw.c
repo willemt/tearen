@@ -341,6 +341,11 @@ void ren_frame_end(void
 //    glutSwapBuffers();
 }
 
+void ren_set_camera(const float x, const float y)
+{
+    vec2Set(rSys->cameraOrg, x, y);
+}
+
 void ren_set_screensize(const int w, const int h)
 {
     in(rSys)->w = w;
