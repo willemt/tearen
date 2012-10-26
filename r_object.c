@@ -50,6 +50,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "linked_list_hashmap.h"
 #include "fixed_arraylist.h"
 #include "heap.h"
+#include "matrix.h"
 
 typedef void (*gl_value_func) (GLuint shader, GLenum pname,
 			       GLint * params);
@@ -154,6 +155,7 @@ typedef struct {
 	GLint position;
 	GLint texture;
 	GLint pmatrix;
+	GLint rotation;
     } attributes;
 
 } __resources_t;
@@ -434,6 +436,7 @@ int ren_obj_set_rot_org(ren_object_t * rob, vec2_t rot_org)
     return 0;
 }
 
+
 /** Set Z rotation angle of object */
 int ren_obj_set_zrot(ren_object_t * rob, float zrot)
 {
@@ -443,7 +446,44 @@ int ren_obj_set_zrot(ren_object_t * rob, float zrot)
     {
     case RENT_SQUARE:
     case RENT_SQUARE_CENTER:
-	square(rob)->zrot = zrot;
+	{
+	    square(rob)->zrot = zrot;
+	    int vbo, vbo_slot, media_id;
+	    float w = (float) square(rob)->w;
+
+	    media_id = square(rob)->media;
+	    vbo = __ren_obj_get_vbo(rob);
+	    vbo_slot = square(rob)->vbo_slot;
+
+	    float r[2];
+
+	    ren_mat4_t mat;
+	    ren_vertex_tc_t verts[4];
+
+	    mat4_rotateZ(zrot, mat);
+
+	    vec2Set(r, -w / 2, -w / 2);
+	    mat4_multiply_vec(mat, r);
+	    vec2Add(in(rob)->org, r, verts[0].pos);
+
+	    vec2Set(r, -w / 2, w / 2);
+	    mat4_multiply_vec(mat, r);
+	    vec2Add(in(rob)->org, r, verts[1].pos);
+
+	    vec2Set(r, w / 2, w / 2);
+	    mat4_multiply_vec(mat, r);
+	    vec2Add(in(rob)->org, r, verts[2].pos);
+
+	    vec2Set(r, w / 2, -w / 2);
+	    mat4_multiply_vec(mat, r);
+	    vec2Add(in(rob)->org, r, verts[3].pos);
+
+	    /* set texture coordinates */
+	    __media_texturecoords_2_gltexturecoords(media_id, verts);
+
+	    /* commit changes to vbo */
+	    ren_vbosquare_item_set_vertices(vbo, vbo_slot, verts, 4);
+	}
 	break;
     default:
 	assert(false);
@@ -523,26 +563,18 @@ int ren_obj_set_org(ren_object_t * rob, vec2_t org)
 		   media_id, ren_media_get_texture(media_id), vbo,
 		   vbo_slot, w);
 #endif
-	    {
-		ren_vertex_tc_t verts[4];
+	    ren_vertex_tc_t verts[4];
 
-		vec2Set(verts[0].pos, org[0], org[1]);
-		vec2Set(verts[1].pos, org[0] + w, org[1]);
-		vec2Set(verts[2].pos, org[0] + w, org[1] + w);
-		vec2Set(verts[3].pos, org[0], org[1] + w);
-#if 0
-		vec2Set(verts[0].tex, 1, 1);
-		vec2Set(verts[1].tex, 0, 1);
-		vec2Set(verts[2].tex, 0, 0);
-		vec2Set(verts[3].tex, 1, 0);
-#endif
+	    vec2Set(verts[0].pos, org[0], org[1]);
+	    vec2Set(verts[1].pos, org[0] + w, org[1]);
+	    vec2Set(verts[2].pos, org[0] + w, org[1] + w);
+	    vec2Set(verts[3].pos, org[0], org[1] + w);
 
-		/* set texture coordinates */
-		__media_texturecoords_2_gltexturecoords(media_id, verts);
+	    /* set texture coordinates */
+	    __media_texturecoords_2_gltexturecoords(media_id, verts);
 
-		/* commit changes to vbo */
-		ren_vbosquare_item_set_vertices(vbo, vbo_slot, verts, 4);
-	    }
+	    /* commit changes to vbo */
+	    ren_vbosquare_item_set_vertices(vbo, vbo_slot, verts, 4);
 	}
 	break;
     default:
@@ -854,7 +886,7 @@ int ren_obj_draw(ren_object_t * rob)
 		/* offload to secondary heap */
 		heap_offer(canvas(rob)->offload_heap, child);
 
-                /* draw the object */
+		/* draw the object */
 		ren_obj_draw(child);
 	    }
 	    while (1);
@@ -910,6 +942,16 @@ void ren_objs_init()
     {
 	assert(0);
     }
+
+#if 0
+    resources->attributes.rotation =
+	glGetAttribLocation(resources->program, "rotation");
+
+    if (resources->attributes.rotation == -1)
+    {
+	assert(0);
+    }
+#endif
 
     resources->attributes.texcoord =
 	glGetAttribLocation(resources->program, "texcoord");

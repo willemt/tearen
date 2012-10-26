@@ -88,7 +88,7 @@ def build(bld):
         bld.shlib(
             source="""
             r_draw.c
-            r_matrix.c
+            matrix.c
             r_media.c
             r_object.c
             r_shader.c

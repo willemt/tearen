@@ -37,6 +37,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "r_local.h"
 #include "linked_list_hashmap.h"
 #include "fixed_arraylist.h"
+#include <math.h>
 
 void ren_mat4_identity(ren_mat4_t m)
 {
@@ -44,6 +45,28 @@ void ren_mat4_identity(ren_mat4_t m)
     m[1] = m[2] = m[3] = m[4] = 0.0;
     m[6] = m[7] = m[8] = m[9] = 0.0;
     m[11] = m[12] = m[13] = m[14] = 0.0;
+}
+
+void mat4_rotateZ(float radians, ren_mat4_t mat)
+{
+    ren_mat4_identity(mat);
+
+    /* Rotate Z formula. */
+    mat[0] = cosf(radians);
+    mat[1] = sinf(radians);
+    mat[4] = -sinf(radians);
+    mat[5] = cosf(radians);
+    mat[10] = 1;
+}
+
+void mat4_multiply_vec(ren_mat4_t m, float v[4])
+{
+    float out[2];
+
+    out[0] = m[0] * v[0] + m[1] * v[1];
+    out[1] = m[4] * v[0] + m[5] * v[1];
+    v[0] = out[0];
+    v[1] = out[1];
 }
 
 void ren_mat4_translate(float x, float y, float z, ren_mat4_t mat)
@@ -93,19 +116,8 @@ void ren_mat4_rotateY(float degrees, ren_mat4_t mat)
     mat[10] = mat[0];
 }
 
-void ren_mat4_rotateZ(float degrees, ren_mat4_t mat)
-{
-    float radians = degreesToRadians(degrees);
-
-    ren_mat4_identity(mat);
-
-    /* Rotate Z formula. */
-    mat[0] = cosf(radians);
-    mat[1] = sinf(radians);
-    mat[4] = -mat[1];
-    mat[5] = mat[0];
-}
 #endif
+
 
 void ren_mat4_multiply(ren_mat4_t m1, ren_mat4_t m2, ren_mat4_t result)
 {
@@ -153,8 +165,8 @@ void ren_mat4_multiply(ren_mat4_t m1, ren_mat4_t m2, ren_mat4_t result)
 }
 
 
-void ren_mat4_projection(ren_mat4_t mat, float far, float near, float right,
-		      float left, float top, float bottom)
+void ren_mat4_projection(ren_mat4_t mat, float far, float near,
+			 float right, float left, float top, float bottom)
 {
     mat[0] = 2.0f / (right - left);
     mat[1] = 0;

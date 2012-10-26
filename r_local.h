@@ -1,9 +1,20 @@
+/*
+    tc: texcoord
+    r: rotation
+*/
 
 typedef struct
 {
     GLfloat pos[2];
     GLfloat tex[2];
 } ren_vertex_tc_t;
+
+typedef struct
+{
+/* the 3rd position is used as the rotation */
+    GLfloat pos[3];
+    GLfloat tex[2];
+} ren_vertex_tcr_t;
 
 typedef struct {
     GLfloat position[2];

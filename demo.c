@@ -19,7 +19,7 @@ int main(int argc, char **argv)
     ren_object_t *canvas;
     int ii;
     int media;
-    
+
     ren_draw_init(argv[0]);
     canvas = ren_obj_init(RENT_CANVAS);
     media = ren_media_get("default.png");
@@ -29,8 +29,8 @@ int main(int argc, char **argv)
     {
 	vec2_t org;
 
-	org[0] = (float)ii * 40;// / 100;
-	org[1] = (float)ii * 40;// / 100;
+	org[0] = (float) ii *40;	// / 100;
+	org[1] = (float) ii *40;	// / 100;
 	obs[ii] = ren_obj_init(RENT_SQUARE);
 	ren_obj_set_media(obs[ii], media);
 	ren_obj_set_w(obs[ii], 64);
@@ -56,15 +56,34 @@ int main(int argc, char **argv)
     }
 #endif
 
+    int degree = 0;
+
     while (1)
     {
+	vec2_t org;
+	int mx, my;
+
 	ren_frame_begin();
 
 	ren_obj_draw(canvas);
 
 	ren_frame_end();
 
-	sleep(100);
+	SDL_PumpEvents();
+
+	SDL_GetMouseState(&mx, &my);
+	org[0] = mx;
+	org[1] = my;
+	ren_obj_set_org(obs[0], org);
+
+        for (ii=0; ii<10; ii++)
+        {
+            ren_obj_set_zrot(obs[ii], (float)degree / 100);
+        }
+
+	SDL_Delay(10);
+
+	degree += 1;
     }
 
     return 0;
