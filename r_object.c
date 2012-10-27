@@ -371,13 +371,13 @@ int ren_obj_release_uninitialise(ren_object_t ** rob)
 
 /*----------------------------------------------------------------------------*/
 
-static void __manage_vboslot_with_new_textures(
-						  /*  vbo item slot */
-						  int *vslot,
-						  /*  media new */
-						  const int m_new,
-						  /*  media old */
-						  const int m_old)
+static void __vboslot_with_new_texture(
+					  /*  vbo item slot */
+					  int *vslot,
+					  /*  media new */
+					  const int m_new,
+					  /*  media old */
+					  const int m_old)
 {
     int tex, vbo;
 
@@ -415,8 +415,9 @@ static void __manage_vboslot_with_new_textures(
 /**
  * Set the current media ID of this object.
  * Used for texturing the object
+ * @param m_id media id to use
  * */
-int ren_obj_set_media(ren_object_t * rob, const int media_id)
+int ren_obj_set_media(ren_object_t * rob, const int m_id)
 {
 //    void *vbo;
 
@@ -428,21 +429,20 @@ int ren_obj_set_media(ren_object_t * rob, const int media_id)
     case RENT_SQUARE:
     case RENT_SQUARE_CENTER:
 	{
-	    __manage_vboslot_with_new_textures(&square(rob)->vbo_slot,
-					       media_id,
-					       square(rob)->media);
-	    square(rob)->media = media_id;
+	    __vboslot_with_new_texture(&square(rob)->vbo_slot,
+				       m_id, square(rob)->media);
+	    square(rob)->media = m_id;
 	}
 	break;
     case RENT_RECT:
-	__manage_vboslot_with_new_textures(&rect(rob)->vbo_slot,
-					   media_id, rect(rob)->media);
-	rect(rob)->media = media_id;
+	__vboslot_with_new_texture(&rect(rob)->vbo_slot,
+				   m_id, rect(rob)->media);
+	rect(rob)->media = m_id;
 	break;
     case RENT_BONE:
-	__manage_vboslot_with_new_textures(&bone(rob)->vbo_slot,
-					   media_id, rect(rob)->media);
-	bone(rob)->media = media_id;
+	__vboslot_with_new_texture(&bone(rob)->vbo_slot,
+				   m_id, rect(rob)->media);
+	bone(rob)->media = m_id;
 	break;
     default:
 	assert(false);
@@ -510,12 +510,7 @@ int ren_obj_set_zrot(ren_object_t * rob, float zrot)
     case RENT_SQUARE_CENTER:
 	{
 	    square(rob)->zrot = zrot;
-	    int vbo, vbo_slot, media_id;
 	    float w = (float) square(rob)->w;
-
-	    media_id = square(rob)->media;
-	    vbo = __ren_obj_get_vbo(rob);
-	    vbo_slot = square(rob)->vbo_slot;
 
 	    float r[2];
 
@@ -541,10 +536,12 @@ int ren_obj_set_zrot(ren_object_t * rob, float zrot)
 	    vec2Add(in(rob)->org, r, verts[3].pos);
 
 	    /* set texture coordinates */
-	    __media_texturecoords_2_gltexturecoords(media_id, verts);
-
+	    __media_texturecoords_2_gltexturecoords(square(rob)->media,
+						    verts);
 	    /* commit changes to vbo */
-	    ren_vbosquare_item_set_vertices(vbo, vbo_slot, verts, 4);
+	    ren_vbosquare_item_set_vertices(__ren_obj_get_vbo(rob),
+					    square(rob)->vbo_slot, verts,
+					    4);
 	}
 	break;
     case RENT_BONE:
@@ -599,6 +596,20 @@ int ren_obj_get_h(ren_object_t * rob)
     return 0;
 }
 
+static void __boneify_verts(const vec2_t a,
+			    const vec2_t b, ren_vertex_tc_t * o, float w)
+{
+    vec2_t normal;
+
+    vec2Subtract(a, b, normal);
+    vec2Normalize(normal);
+    vec2Perp(normal);
+    vec2MA(a, -w, normal, o[0].pos);
+    vec2MA(a, w, normal, o[1].pos);
+    vec2MA(b, w, normal, o[2].pos);
+    vec2MA(b, -w, normal, o[3].pos);
+}
+
 /**
  * set origin of object
  *
@@ -618,10 +629,6 @@ int ren_obj_set_org(ren_object_t * rob, vec2_t org)
 
 	    vec2Copy(org, in(rob)->org);
 
-	    media_id = square(rob)->media;
-	    vbo = __ren_obj_get_vbo(rob);
-	    vbo_slot = square(rob)->vbo_slot;
-
 #if 0
 	    printf("%f,%f %d %d vbo:%d vslot:%d w:%d\n", org[0], org[1],
 		   media_id, ren_media_get_texture(media_id), vbo,
@@ -635,34 +642,30 @@ int ren_obj_set_org(ren_object_t * rob, vec2_t org)
 	    vec2Set(verts[3].pos, org[0], org[1] + w);
 
 	    /* set texture coordinates */
-	    __media_texturecoords_2_gltexturecoords(media_id, verts);
+	    __media_texturecoords_2_gltexturecoords(square(rob)->media,
+						    verts);
 	    /* commit changes to vbo */
-	    ren_vbosquare_item_set_vertices(vbo, vbo_slot, verts, 4);
+	    ren_vbosquare_item_set_vertices(__ren_obj_get_vbo(rob),
+					    square(rob)->vbo_slot, verts,
+					    4);
 	}
 	break;
     case RENT_BONE:
 	{
-	    int vbo, vbo_slot, media_id;
-
-	    float w = (float) square(rob)->w;
+	    ren_vertex_tc_t verts[4];
 
 	    vec2Copy(org, in(rob)->org);
 
-	    media_id = square(rob)->media;
-	    vbo = __ren_obj_get_vbo(rob);
-	    vbo_slot = square(rob)->vbo_slot;
-
-	    ren_vertex_tc_t verts[4];
-
-	    vec2Set(verts[0].pos, org[0], org[1]);
-	    vec2Set(verts[1].pos, org[0] + w, org[1]);
-//          vec2Set(verts[2].pos, org[0] + w, org[1] + w);
-//          vec2Set(verts[3].pos, org[0], org[1] + w);
+	    /* make it like a bone */
+	    __boneify_verts(in(rob)->org, bone(rob)->endpos, verts,
+			    bone(rob)->w);
 
 	    /* set texture coordinates */
-	    __media_texturecoords_2_gltexturecoords(media_id, verts);
+	    __media_texturecoords_2_gltexturecoords(bone(rob)->media,
+						    verts);
 	    /* commit changes to vbo */
-	    ren_vbosquare_item_set_vertices(vbo, vbo_slot, verts, 2);
+	    ren_vbosquare_item_set_vertices(__ren_obj_get_vbo(rob),
+					    bone(rob)->vbo_slot, verts, 4);
 	}
 	break;
     default:
@@ -671,20 +674,6 @@ int ren_obj_set_org(ren_object_t * rob, vec2_t org)
     }
 
     return 0;
-}
-
-static void __boneify_verts(const vec2_t a,
-			    const vec2_t b, ren_vertex_tc_t * o, float w)
-{
-    vec2_t normal;
-
-    vec2Subtract(a, b, normal);
-    vec2Normalize(normal);
-    vec2Perp(normal);
-    vec2MA(a, -w, normal, o[0].pos);
-    vec2MA(a, w, normal, o[1].pos);
-    vec2MA(b, w, normal, o[2].pos);
-    vec2MA(b, -w, normal, o[3].pos);
 }
 
 /**
@@ -1082,16 +1071,6 @@ void ren_objs_init()
     {
 	assert(0);
     }
-
-#if 0
-    resources->attributes.rotation =
-	glGetAttribLocation(resources->program, "rotation");
-
-    if (resources->attributes.rotation == -1)
-    {
-	assert(0);
-    }
-#endif
 
     resources->attributes.texcoord =
 	glGetAttribLocation(resources->program, "texcoord");
