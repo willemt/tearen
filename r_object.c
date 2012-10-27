@@ -57,7 +57,7 @@ typedef void (*gl_value_func) (GLuint shader, GLenum pname,
 typedef void (*gl_info_log) (GLuint shader, GLsizei maxLength,
 			     GLsizei * length, GLchar * infoLog);
 
-static int __ren_obj_get_vbo(ren_object_t * rob);
+static int __obj_get_vbo(ren_object_t * ro);
 
 /*----------------------------------------------------------------------------*/
 /**
@@ -100,13 +100,13 @@ typedef struct {
  * This object's role is to draw other objects */
 typedef struct {
     arraylistf_t *children;
-    /* Use this heap for ordering the way we draw robs
-       It isn't critical that the ordering of robs is perfect.  */
+    /* Use this heap for ordering the way we draw ros
+       It isn't critical that the ordering of ros is perfect.  */
     heap_t *draw_heap;
-    /* use this heap for offloading the robs that we draw */
+    /* use this heap for offloading the ros that we draw */
     heap_t *offload_heap;
 
-    /* dictionary of VBO IDs to squarevbo robs */
+    /* dictionary of VBO IDs to squarevbo ros */
     hashmap_t *vbo_map;
 } __canvas_t;
 
@@ -141,7 +141,7 @@ typedef struct {
 #define VBO_ELEM_SIZE 1000
 
 /** Internal list of objects */
-static arraylistf_t *__robj_list = NULL;
+static arraylistf_t *__roj_list = NULL;
 
 /** Internal list of VBOs by texture
  * This is where we want to batch objects by their texture ID
@@ -182,8 +182,8 @@ static long __ulong_compare(const void *e1, const void *e2)
 }
 
 /**
- * Sort robs by the most effective drawing path */
-static int __cmp_robs_to_draw(const void *o1,
+ * Sort ros by the most effective drawing path */
+static int __cmp_ros_to_draw(const void *o1,
 			      const void *o2, const void *udata)
 {
     const ren_object_t *r1 = o1, *r2 = o2;
@@ -221,25 +221,23 @@ __media_texturecoords_2_gltexturecoords(const int media_id,
 
 /*----------------------------------------------------------------------------*/
 
-static void __obj_release_typedata(ren_object_t * rob)
+static void __obj_release_typedata(ren_object_t * ro)
 {
-    switch (in(rob)->type)
+    switch (in(ro)->type)
     {
     case RENT_SQUARE:
     case RENT_SQUARE_CENTER:
 	{
-//            printf("releasing square rom vbo: %d\n", in(rob)->id);
-	    ren_vbosquare_release_itemslot(__ren_obj_get_vbo(rob),
-					   square(rob)->vbo_slot);
-	    free(in(rob)->typedata);
+	    ren_vbosquare_release_itemslot(__obj_get_vbo(ro),
+					   square(ro)->vbo_slot);
+	    free(in(ro)->typedata);
 	}
 	break;
     case RENT_RECT:
 	{
-//            printf("releasing rect from vbo: %d\n", in(rob)->id);
-	    ren_vbosquare_release_itemslot(__ren_obj_get_vbo(rob),
-					   rect(rob)->vbo_slot);
-	    free(in(rob)->typedata);
+	    ren_vbosquare_release_itemslot(__obj_get_vbo(ro),
+					   rect(ro)->vbo_slot);
+	    free(in(ro)->typedata);
 	}
 	break;
     default:
@@ -247,30 +245,30 @@ static void __obj_release_typedata(ren_object_t * rob)
 	break;
     }
 
-    in(rob)->typedata = NULL;
+    in(ro)->typedata = NULL;
 }
 
-static void __obj_init_typedata(ren_object_t * rob)
+static void __obj_init_typedata(ren_object_t * ro)
 {
     /*  sub-class initialisations */
-    switch (in(rob)->type)
+    switch (in(ro)->type)
     {
     case RENT_SQUARE:
     case RENT_SQUARE_CENTER:
-	in(rob)->typedata = calloc(1, sizeof(__square_t));
+	in(ro)->typedata = calloc(1, sizeof(__square_t));
 	break;
     case RENT_CANVAS:
-	in(rob)->typedata = calloc(1, sizeof(__canvas_t));
-	canvas(rob)->children = arraylistf_new();
-	canvas(rob)->draw_heap = heap_new(__cmp_robs_to_draw, NULL);
-	canvas(rob)->offload_heap = heap_new(__cmp_robs_to_draw, NULL);
-	canvas(rob)->vbo_map = hashmap_new(__ulong_hash, __ulong_compare);
+	in(ro)->typedata = calloc(1, sizeof(__canvas_t));
+	canvas(ro)->children = arraylistf_new();
+	canvas(ro)->draw_heap = heap_new(__cmp_ros_to_draw, NULL);
+	canvas(ro)->offload_heap = heap_new(__cmp_ros_to_draw, NULL);
+	canvas(ro)->vbo_map = hashmap_new(__ulong_hash, __ulong_compare);
 	break;
     case RENT_SQUARE_VBO:
-	in(rob)->typedata = calloc(1, sizeof(__square_vbo_t));
+	in(ro)->typedata = calloc(1, sizeof(__square_vbo_t));
 	break;
     case RENT_BONE:
-	in(rob)->typedata = calloc(1, sizeof(__bone_t));
+	in(ro)->typedata = calloc(1, sizeof(__bone_t));
 	break;
     default:
 	assert(false);
@@ -310,11 +308,11 @@ static int __get_vbo_from_texture(unsigned long texture)
 
 /**
  * @return VBO ID that object is on */
-static int __ren_obj_get_vbo(ren_object_t * rob)
+static int __obj_get_vbo(ren_object_t * ro)
 {
     int tex, vbo;
 
-    switch (in(rob)->type)
+    switch (in(ro)->type)
     {
     case RENT_SQUARE:
     case RENT_SQUARE_CENTER:
@@ -322,7 +320,7 @@ static int __ren_obj_get_vbo(ren_object_t * rob)
 	{
 	    int tex;
 
-	    tex = ren_media_get_texture(ren_obj_get_media(rob));
+	    tex = ren_media_get_texture(ren_obj_get_media(ro));
 
 	    return __get_vbo_from_texture(tex);
 	}
@@ -339,33 +337,33 @@ static int __ren_obj_get_vbo(ren_object_t * rob)
 
 
 /**
- * Robject destructor */
-int ren_obj_release(ren_object_t * rob)
+ * roject destructor */
+int ren_obj_release(ren_object_t * ro)
 {
     void *removed;
 
-    removed = arraylistf_remove(__robj_list, in(rob)->id);
+    removed = arraylistf_remove(__roj_list, in(ro)->id);
 
-    assert(rob == removed);
+    assert(ro == removed);
 
-    __obj_release_typedata(rob);
+    __obj_release_typedata(ro);
 
-    free(rob->in);
-    free(rob);
+    free(ro->in);
+    free(ro);
     return 1;
 }
 
 /**
  * Release object and set ptr to NULL */
-int ren_obj_release_uninitialise(ren_object_t ** rob)
+int ren_obj_release_uninitialise(ren_object_t ** ro)
 {
     int ret;
 
-    if (!*rob)
+    if (!*ro)
 	return 0;
 
-    ret = ren_obj_release(*rob);
-    *rob = NULL;
+    ret = ren_obj_release(*ro);
+    *ro = NULL;
     return ret;
 }
 
@@ -417,32 +415,32 @@ static void __vboslot_with_new_texture(
  * Used for texturing the object
  * @param m_id media id to use
  * */
-int ren_obj_set_media(ren_object_t * rob, const int m_id)
+int ren_obj_set_media(ren_object_t * ro, const int m_id)
 {
 //    void *vbo;
 
-    assert(rob);
-    assert(rob->in);
+    assert(ro);
+    assert(ro->in);
 
-    switch (in(rob)->type)
+    switch (in(ro)->type)
     {
     case RENT_SQUARE:
     case RENT_SQUARE_CENTER:
 	{
-	    __vboslot_with_new_texture(&square(rob)->vbo_slot,
-				       m_id, square(rob)->media);
-	    square(rob)->media = m_id;
+	    __vboslot_with_new_texture(&square(ro)->vbo_slot,
+				       m_id, square(ro)->media);
+	    square(ro)->media = m_id;
 	}
 	break;
     case RENT_RECT:
-	__vboslot_with_new_texture(&rect(rob)->vbo_slot,
-				   m_id, rect(rob)->media);
-	rect(rob)->media = m_id;
+	__vboslot_with_new_texture(&rect(ro)->vbo_slot,
+				   m_id, rect(ro)->media);
+	rect(ro)->media = m_id;
 	break;
     case RENT_BONE:
-	__vboslot_with_new_texture(&bone(rob)->vbo_slot,
-				   m_id, rect(rob)->media);
-	bone(rob)->media = m_id;
+	__vboslot_with_new_texture(&bone(ro)->vbo_slot,
+				   m_id, rect(ro)->media);
+	bone(ro)->media = m_id;
 	break;
     default:
 	assert(false);
@@ -454,21 +452,21 @@ int ren_obj_set_media(ren_object_t * rob, const int m_id)
 
 /**
  * @return media id of object */
-int ren_obj_get_media(ren_object_t * rob)
+int ren_obj_get_media(ren_object_t * ro)
 {
-    assert(rob);
-    assert(rob->in);
-    switch (in(rob)->type)
+    assert(ro);
+    assert(ro->in);
+    switch (in(ro)->type)
     {
     case RENT_SQUARE:
     case RENT_SQUARE_CENTER:
-	return square(rob)->media;
+	return square(ro)->media;
     case RENT_RECT:
-	return rect(rob)->media;
+	return rect(ro)->media;
     case RENT_SQUARE_VBO:
-	return rect(rob)->media;
+	return rect(ro)->media;
     case RENT_BONE:
-	return bone(rob)->media;
+	return bone(ro)->media;
     default:
 	assert(false);
 	return 0;
@@ -477,17 +475,17 @@ int ren_obj_get_media(ren_object_t * rob)
 }
 
 /** Set rotational origin of object */
-int ren_obj_set_rot_org(ren_object_t * rob, vec2_t rot_org)
+int ren_obj_set_rot_org(ren_object_t * ro, vec2_t rot_org)
 {
-    assert(rob);
-    assert(rob->in);
-    switch (in(rob)->type)
+    assert(ro);
+    assert(ro->in);
+    switch (in(ro)->type)
     {
     case RENT_SQUARE:
-	vec2Copy(rot_org, square(rob)->rot_org);
+	vec2Copy(rot_org, square(ro)->rot_org);
 #if 0
     case RENT_RECT:
-	vec2Copy(rot_org, rect(rob)->rot_org);
+	vec2Copy(rot_org, rect(ro)->rot_org);
 	break;
 #endif
     default:
@@ -500,17 +498,17 @@ int ren_obj_set_rot_org(ren_object_t * rob, vec2_t rot_org)
 
 
 /** Set Z rotation angle of object */
-int ren_obj_set_zrot(ren_object_t * rob, float zrot)
+int ren_obj_set_zrot(ren_object_t * ro, float zrot)
 {
-    assert(rob);
-    assert(rob->in);
-    switch (in(rob)->type)
+    assert(ro);
+    assert(ro->in);
+    switch (in(ro)->type)
     {
     case RENT_SQUARE:
     case RENT_SQUARE_CENTER:
 	{
-	    square(rob)->zrot = zrot;
-	    float w = (float) square(rob)->w;
+	    square(ro)->zrot = zrot;
+	    float w = (float) square(ro)->w;
 
 	    float r[2];
 
@@ -521,26 +519,26 @@ int ren_obj_set_zrot(ren_object_t * rob, float zrot)
 
 	    vec2Set(r, -w / 2, -w / 2);
 	    mat4_multiply_vec(mat, r);
-	    vec2Add(in(rob)->org, r, verts[0].pos);
+	    vec2Add(in(ro)->org, r, verts[0].pos);
 
 	    vec2Set(r, -w / 2, w / 2);
 	    mat4_multiply_vec(mat, r);
-	    vec2Add(in(rob)->org, r, verts[1].pos);
+	    vec2Add(in(ro)->org, r, verts[1].pos);
 
 	    vec2Set(r, w / 2, w / 2);
 	    mat4_multiply_vec(mat, r);
-	    vec2Add(in(rob)->org, r, verts[2].pos);
+	    vec2Add(in(ro)->org, r, verts[2].pos);
 
 	    vec2Set(r, w / 2, -w / 2);
 	    mat4_multiply_vec(mat, r);
-	    vec2Add(in(rob)->org, r, verts[3].pos);
+	    vec2Add(in(ro)->org, r, verts[3].pos);
 
 	    /* set texture coordinates */
-	    __media_texturecoords_2_gltexturecoords(square(rob)->media,
+	    __media_texturecoords_2_gltexturecoords(square(ro)->media,
 						    verts);
 	    /* commit changes to vbo */
-	    ren_vbosquare_item_set_vertices(__ren_obj_get_vbo(rob),
-					    square(rob)->vbo_slot, verts,
+	    ren_vbosquare_item_set_vertices(__obj_get_vbo(ro),
+					    square(ro)->vbo_slot, verts,
 					    4);
 	}
 	break;
@@ -556,17 +554,17 @@ int ren_obj_set_zrot(ren_object_t * rob, float zrot)
 
 /**
  * @return width of object */
-int ren_obj_get_w(ren_object_t * rob)
+int ren_obj_get_w(ren_object_t * ro)
 {
-    assert(rob);
-    assert(rob->in);
-    switch (in(rob)->type)
+    assert(ro);
+    assert(ro->in);
+    switch (in(ro)->type)
     {
     case RENT_SQUARE:
     case RENT_SQUARE_CENTER:
-	return square(rob)->w;
+	return square(ro)->w;
     case RENT_RECT:
-	return rect(rob)->w;
+	return rect(ro)->w;
     default:
 	assert(false);
 	break;
@@ -577,17 +575,17 @@ int ren_obj_get_w(ren_object_t * rob)
 
 /**
  * @return height of object */
-int ren_obj_get_h(ren_object_t * rob)
+int ren_obj_get_h(ren_object_t * ro)
 {
-    assert(rob);
-    assert(rob->in);
-    switch (in(rob)->type)
+    assert(ro);
+    assert(ro->in);
+    switch (in(ro)->type)
     {
     case RENT_SQUARE:
     case RENT_SQUARE_CENTER:
-	return square(rob)->w;
+	return square(ro)->w;
     case RENT_RECT:
-	return rect(rob)->h;
+	return rect(ro)->h;
     default:
 	assert(false);
 	break;
@@ -614,20 +612,20 @@ static void __boneify_verts(const vec2_t a,
  * set origin of object
  *
  * */
-int ren_obj_set_org(ren_object_t * rob, vec2_t org)
+int ren_obj_set_org(ren_object_t * ro, vec2_t org)
 {
-    assert(rob);
-    assert(rob->in);
-    switch (in(rob)->type)
+    assert(ro);
+    assert(ro->in);
+    switch (in(ro)->type)
     {
     case RENT_SQUARE:
     case RENT_SQUARE_CENTER:
 	{
 	    int vbo, vbo_slot, media_id;
 
-	    float w = (float) square(rob)->w;
+	    float w = (float) square(ro)->w;
 
-	    vec2Copy(org, in(rob)->org);
+	    vec2Copy(org, in(ro)->org);
 
 #if 0
 	    printf("%f,%f %d %d vbo:%d vslot:%d w:%d\n", org[0], org[1],
@@ -642,11 +640,11 @@ int ren_obj_set_org(ren_object_t * rob, vec2_t org)
 	    vec2Set(verts[3].pos, org[0], org[1] + w);
 
 	    /* set texture coordinates */
-	    __media_texturecoords_2_gltexturecoords(square(rob)->media,
+	    __media_texturecoords_2_gltexturecoords(square(ro)->media,
 						    verts);
 	    /* commit changes to vbo */
-	    ren_vbosquare_item_set_vertices(__ren_obj_get_vbo(rob),
-					    square(rob)->vbo_slot, verts,
+	    ren_vbosquare_item_set_vertices(__obj_get_vbo(ro),
+					    square(ro)->vbo_slot, verts,
 					    4);
 	}
 	break;
@@ -654,18 +652,18 @@ int ren_obj_set_org(ren_object_t * rob, vec2_t org)
 	{
 	    ren_vertex_tc_t verts[4];
 
-	    vec2Copy(org, in(rob)->org);
+	    vec2Copy(org, in(ro)->org);
 
 	    /* make it like a bone */
-	    __boneify_verts(in(rob)->org, bone(rob)->endpos, verts,
-			    bone(rob)->w);
+	    __boneify_verts(in(ro)->org, bone(ro)->endpos, verts,
+			    bone(ro)->w);
 
 	    /* set texture coordinates */
-	    __media_texturecoords_2_gltexturecoords(bone(rob)->media,
+	    __media_texturecoords_2_gltexturecoords(bone(ro)->media,
 						    verts);
 	    /* commit changes to vbo */
-	    ren_vbosquare_item_set_vertices(__ren_obj_get_vbo(rob),
-					    bone(rob)->vbo_slot, verts, 4);
+	    ren_vbosquare_item_set_vertices(__obj_get_vbo(ro),
+					    bone(ro)->vbo_slot, verts, 4);
 	}
 	break;
     default:
@@ -680,11 +678,11 @@ int ren_obj_set_org(ren_object_t * rob, vec2_t org)
  * set end point of object
  *
  * */
-int ren_obj_set_endpos(ren_object_t * rob, vec2_t endpos)
+int ren_obj_set_endpos(ren_object_t * ro, vec2_t endpos)
 {
-    assert(rob);
-    assert(rob->in);
-    switch (in(rob)->type)
+    assert(ro);
+    assert(ro->in);
+    switch (in(ro)->type)
     {
     case RENT_SQUARE:
     case RENT_SQUARE_CENTER:
@@ -695,23 +693,23 @@ int ren_obj_set_endpos(ren_object_t * rob, vec2_t endpos)
 	    float w;
 
 	    /* archive data */
-	    w = (float) square(rob)->w;
-	    media_id = square(rob)->media;
-	    vec2Copy(in(rob)->org, org);
+	    w = (float) square(ro)->w;
+	    media_id = square(ro)->media;
+	    vec2Copy(in(ro)->org, org);
 
 	    /* convert into bone object */
 	    /* free typedata - this is because we are re-allocating */
-	    __obj_release_typedata(rob);
-	    __obj_init_typedata(rob);
-	    in(rob)->type = RENT_BONE;
+	    __obj_release_typedata(ro);
+	    __obj_init_typedata(ro);
+	    in(ro)->type = RENT_BONE;
 
 	    /* use archive data */
-	    ren_obj_set_w(rob, w);
-	    ren_obj_set_media(rob, media_id);
+	    ren_obj_set_w(ro, w);
+	    ren_obj_set_media(ro, media_id);
 
 	    /* re-position */
-	    ren_obj_set_org(rob, org);
-	    ren_obj_set_endpos(rob, endpos);
+	    ren_obj_set_org(ro, org);
+	    ren_obj_set_endpos(ro, endpos);
 	}
 	break;
 
@@ -719,18 +717,18 @@ int ren_obj_set_endpos(ren_object_t * rob, vec2_t endpos)
 	{
 	    ren_vertex_tc_t verts[4];
 
-	    vec2Copy(endpos, bone(rob)->endpos);
+	    vec2Copy(endpos, bone(ro)->endpos);
 
 	    /* make it like a bone */
-	    __boneify_verts(in(rob)->org, bone(rob)->endpos, verts,
-			    bone(rob)->w);
+	    __boneify_verts(in(ro)->org, bone(ro)->endpos, verts,
+			    bone(ro)->w);
 
 	    /* set texture coordinates */
-	    __media_texturecoords_2_gltexturecoords(bone(rob)->media,
+	    __media_texturecoords_2_gltexturecoords(bone(ro)->media,
 						    verts);
 	    /* commit changes to vbo */
-	    ren_vbosquare_item_set_vertices(__ren_obj_get_vbo(rob),
-					    bone(rob)->vbo_slot, verts, 4);
+	    ren_vbosquare_item_set_vertices(__obj_get_vbo(ro),
+					    bone(ro)->vbo_slot, verts, 4);
 	}
 
 	break;
@@ -750,11 +748,11 @@ int ren_obj_set_endpos(ren_object_t * rob, vec2_t endpos)
  *
  * */
 int
-ren_obj_set_org_from_xy(ren_object_t * rob, const float x, const float y)
+ren_obj_set_org_from_xy(ren_object_t * ro, const float x, const float y)
 {
-    assert(rob);
-    assert(rob->in);
-    switch (in(rob)->type)
+    assert(ro);
+    assert(ro->in);
+    switch (in(ro)->type)
     {
     case RENT_SQUARE:
     case RENT_SQUARE_CENTER:
@@ -763,7 +761,7 @@ ren_obj_set_org_from_xy(ren_object_t * rob, const float x, const float y)
 	    vec2_t org;
 
 	    vec2Set(org, x, y);
-	    ren_obj_set_org(rob, org);
+	    ren_obj_set_org(ro, org);
 	}
 	break;
     default:
@@ -776,22 +774,22 @@ ren_obj_set_org_from_xy(ren_object_t * rob, const float x, const float y)
 
 /**
  * Set width of object */
-int ren_obj_set_w(ren_object_t * rob, const int w)
+int ren_obj_set_w(ren_object_t * ro, const int w)
 {
-    assert(rob);
-    assert(rob->in);
-    switch (in(rob)->type)
+    assert(ro);
+    assert(ro->in);
+    switch (in(ro)->type)
     {
     case RENT_SQUARE_CENTER:
-	vec2Set(square(rob)->rot_org, (float) w / 2, (float) w / 2);
+	vec2Set(square(ro)->rot_org, (float) w / 2, (float) w / 2);
     case RENT_SQUARE:
-	square(rob)->w = w;
+	square(ro)->w = w;
 	break;
     case RENT_RECT:
-	rect(rob)->w = w;
+	rect(ro)->w = w;
 	break;
     case RENT_BONE:
-	bone(rob)->w = w;
+	bone(ro)->w = w;
 	break;
     default:
 	assert(false);
@@ -803,19 +801,19 @@ int ren_obj_set_w(ren_object_t * rob, const int w)
 
 /**
  * Set height of object */
-int ren_obj_set_h(ren_object_t * rob, const int h)
+int ren_obj_set_h(ren_object_t * ro, const int h)
 {
-    assert(rob);
-    assert(rob->in);
-    switch (in(rob)->type)
+    assert(ro);
+    assert(ro->in);
+    switch (in(ro)->type)
     {
     case RENT_SQUARE_CENTER:
-	vec2Set(square(rob)->rot_org, (float) h / 2, (float) h / 2);
+	vec2Set(square(ro)->rot_org, (float) h / 2, (float) h / 2);
     case RENT_SQUARE:
-	square(rob)->w = h;
+	square(ro)->w = h;
 	break;
     case RENT_RECT:
-	rect(rob)->h = h;
+	rect(ro)->h = h;
 	break;
     default:
 	assert(false);
@@ -827,16 +825,16 @@ int ren_obj_set_h(ren_object_t * rob, const int h)
 
 /**
  * Set current object as parent */
-void ren_obj_set_parent(ren_object_t * rob, ren_object_t * par)
+void ren_obj_set_parent(ren_object_t * ro, ren_object_t * par)
 {
-    ren_obj_add_child(par, rob);
+    ren_obj_add_child(par, ro);
 }
 
 /*----------------------------------------------------------------------------*/
 
 /**
  * Set destination org of end of bone */
-void ren_bone_set_dst(ren_object_t * rob, vec2_t dst)
+void ren_bone_set_dst(ren_object_t * ro, vec2_t dst)
 {
 
 }
@@ -868,18 +866,18 @@ show_info_log(GLuint object,
  * */
 ren_object_t *ren_obj_init(const int type)
 {
-    ren_object_t *rob;
+    ren_object_t *ro;
 
-    /*  robject initialisations */
-    rob = calloc(1, sizeof(ren_object_t));
-    rob->in = calloc(1, sizeof(__obj_t));
+    /*  roject initialisations */
+    ro = calloc(1, sizeof(ren_object_t));
+    ro->in = calloc(1, sizeof(__obj_t));
     /* add to internal registry */
-    in(rob)->id = arraylistf_add(__robj_list, rob);
+    in(ro)->id = arraylistf_add(__roj_list, ro);
     /* set type and load typedata */
-    in(rob)->type = type;
-    __obj_init_typedata(rob);
+    in(ro)->type = type;
+    __obj_init_typedata(ro);
 
-    return rob;
+    return ro;
 }
 
 /**
@@ -887,11 +885,11 @@ ren_object_t *ren_obj_init(const int type)
  * Note: For convenience mainly
  *
  */
-int ren_obj_init_ptr(ren_object_t ** rob, const int type)
+int ren_obj_init_ptr(ren_object_t ** ro, const int type)
 {
-    if (NULL == *rob)
+    if (NULL == *ro)
     {
-	*rob = ren_obj_init(type);
+	*ro = ren_obj_init(type);
 	return 1;
     }
 
@@ -899,35 +897,35 @@ int ren_obj_init_ptr(ren_object_t ** rob, const int type)
 }
 
 /*----------------------------------------------------------------------------*/
-void ren_obj_add_child(ren_object_t * rob, ren_object_t * child)
+void ren_obj_add_child(ren_object_t * ro, ren_object_t * child)
 {
-    switch (in(rob)->type)
+    switch (in(ro)->type)
     {
     case RENT_CANVAS:
-	arraylistf_add(canvas(rob)->children, child);
+	arraylistf_add(canvas(ro)->children, child);
 
 	if (in(child)->type == RENT_SQUARE)
 	{
 	    long child_vbo;
 	    ren_object_t *new;
 
-	    /* get child rob's vbo */
+	    /* get child ro's vbo */
 	    child_vbo =
 		__get_vbo_from_texture(ren_media_get_texture
 				       (square(child)->media));
 
-	    /* check if we already have a rob for this vbo */
-	    if (hashmap_get(canvas(rob)->vbo_map, (void *) child_vbo))
+	    /* check if we already have a ro for this vbo */
+	    if (hashmap_get(canvas(ro)->vbo_map, (void *) child_vbo))
 	    {
 		return;
 	    }
 
-	    /* create a rob for this vbo */
+	    /* create a ro for this vbo */
 	    new = ren_obj_init(RENT_SQUARE_VBO);
 	    squarevbo(new)->media = ren_obj_get_media(child);
 	    squarevbo(new)->vbo = child_vbo;
-	    heap_offer(canvas(rob)->draw_heap, new);
-	    hashmap_put(canvas(rob)->vbo_map, (void *) child_vbo, new);
+	    heap_offer(canvas(ro)->draw_heap, new);
+	    hashmap_put(canvas(ro)->vbo_map, (void *) child_vbo, new);
 	}
 	break;
     default:
@@ -936,7 +934,7 @@ void ren_obj_add_child(ren_object_t * rob, ren_object_t * child)
 
 }
 
-void ren_obj_remove_child(ren_object_t * rob, ren_object_t * child)
+void ren_obj_remove_child(ren_object_t * ro, ren_object_t * child)
 {
     assert(false);
 }
@@ -947,11 +945,11 @@ void ren_obj_remove_child(ren_object_t * rob, ren_object_t * child)
  * Draw object
  *
  * */
-int ren_obj_draw(ren_object_t * rob)
+int ren_obj_draw(ren_object_t * ro)
 {
-    assert(rob);
+    assert(ro);
 
-    switch (in(rob)->type)
+    switch (in(ro)->type)
     {
     case RENT_SQUARE:
 	{
@@ -966,7 +964,7 @@ int ren_obj_draw(ren_object_t * rob)
 	    glUseProgram(resources->program);
 
 	    /* get the texture to use */
-	    tex = ren_media_get_texture(squarevbo(rob)->media);
+	    tex = ren_media_get_texture(squarevbo(ro)->media);
 
 	    /* bind texture */
 	    glActiveTexture(GL_TEXTURE0);
@@ -995,10 +993,10 @@ int ren_obj_draw(ren_object_t * rob)
 	    int ii;
 
 	    /* draw all children */
-	    for (ii = 0; ii < arraylistf_count(canvas(rob)->children);
+	    for (ii = 0; ii < arraylistf_count(canvas(ro)->children);
 		 ii++)
 	    {
-		child = arraylistf_get(canvas(rob)->children, ii);
+		child = arraylistf_get(canvas(ro)->children, ii);
 	    }
 #endif
 
@@ -1007,13 +1005,13 @@ int ren_obj_draw(ren_object_t * rob)
 		ren_object_t *child;
 
 		/* get the next best object to draw */
-		child = heap_poll(canvas(rob)->draw_heap);
+		child = heap_poll(canvas(ro)->draw_heap);
 
 		if (!child)
 		    break;
 
 		/* offload to secondary heap */
-		heap_offer(canvas(rob)->offload_heap, child);
+		heap_offer(canvas(ro)->offload_heap, child);
 
 		/* draw the object */
 		ren_obj_draw(child);
@@ -1023,9 +1021,9 @@ int ren_obj_draw(ren_object_t * rob)
 	    void *heap_swapped;
 
 	    /* swap heaps so that we don't have to copy memory */
-	    heap_swapped = canvas(rob)->offload_heap;
-	    canvas(rob)->offload_heap = canvas(rob)->draw_heap;
-	    canvas(rob)->draw_heap = heap_swapped;
+	    heap_swapped = canvas(ro)->offload_heap;
+	    canvas(ro)->offload_heap = canvas(ro)->draw_heap;
+	    canvas(ro)->draw_heap = heap_swapped;
 	}
 
 	break;
@@ -1046,10 +1044,10 @@ void ren_objs_init()
 	__vbosByTex = hashmap_new(__ulong_hash, __ulong_compare);
     }
 
-    /*  initialise robject list */
-    if (!__robj_list)
+    /*  initialise roject list */
+    if (!__roj_list)
     {
-	__robj_list = arraylistf_new();
+	__roj_list = arraylistf_new();
     }
 
     if (!resources)
