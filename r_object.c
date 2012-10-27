@@ -57,6 +57,7 @@ typedef void (*gl_value_func) (GLuint shader, GLenum pname,
 typedef void (*gl_info_log) (GLuint shader, GLsizei maxLength,
 			     GLsizei * length, GLchar * infoLog);
 
+static int __ren_obj_get_vbo(ren_object_t * rob);
 
 /*----------------------------------------------------------------------------*/
 /**
@@ -90,7 +91,7 @@ typedef struct {
     int media;
     int w, h;
     /*  other part of bone */
-    vec2_t dst;
+    vec2_t endpos;
     int vbo_slot;
 } __bone_t;
 
@@ -164,6 +165,22 @@ static __resources_t *resources = NULL;
 
 /*----------------------------------------------------------------------------*/
 
+static unsigned long __ulong_hash(const void *e1)
+{
+    const long i1 = (unsigned long) e1;
+
+    assert(i1 >= 0);
+    return i1;
+}
+
+static long __ulong_compare(const void *e1, const void *e2)
+{
+    const long i1 = (unsigned long) e1, i2 = (unsigned long) e2;
+
+//      return !(*i1 == *i2); 
+    return i1 - i2;
+}
+
 /**
  * Sort robs by the most effective drawing path */
 static int __cmp_robs_to_draw(const void *o1,
@@ -203,72 +220,9 @@ __media_texturecoords_2_gltexturecoords(const int media_id,
 }
 
 /*----------------------------------------------------------------------------*/
-/**
- * Get the VBO that corresponds to this texture.
- * Initialise a VBO if needed.
- * @return 0 = error; otherwise VBO ID
- */
-static int __get_vbo_from_texture(unsigned long texture)
+
+static void __obj_release_typedata(ren_object_t * rob)
 {
-    unsigned long vbo;
-
-    assert(0 < texture);
-
-    /* look for the vbo */
-    vbo =
-	(unsigned long) (void *) hashmap_get(__vbosByTex,
-					     (void *) texture);
-
-    /* if there isn't a vbo for this texture, then create one */
-    if (0 == vbo)
-    {
-//      vbo = ren_vbom_init(VBO_ELEM_SIZE);
-	vbo = ren_vbosquare_init(VBO_ELEM_SIZE);
-	hashmap_put(__vbosByTex, (void *) texture, (void *) vbo);
-    }
-
-    return vbo;
-}
-
-/*----------------------------------------------------------------------------*/
-
-/**
- * @return VBO ID that object is on */
-static int __ren_obj_get_vbo(ren_object_t * rob)
-{
-    int tex, vbo;
-
-    switch (in(rob)->type)
-    {
-    case RENT_SQUARE:
-    case RENT_SQUARE_CENTER:
-	{
-	    int tex;
-
-	    tex = ren_media_get_texture(square(rob)->media);
-	    return __get_vbo_from_texture(tex);
-	}
-	break;
-    default:
-	assert(false);
-	break;
-    }
-
-    return 0;
-}
-
-/*----------------------------------------------------------------------------*/
-
-/**
- * Robject destructor */
-int ren_obj_release(ren_object_t * rob)
-{
-    void *removed;
-
-    removed = arraylistf_remove(__robj_list, in(rob)->id);
-
-    assert(rob == removed);
-
     switch (in(rob)->type)
     {
     case RENT_SQUARE:
@@ -292,6 +246,109 @@ int ren_obj_release(ren_object_t * rob)
 	assert(false);
 	break;
     }
+
+    in(rob)->typedata = NULL;
+}
+
+static void __obj_init_typedata(ren_object_t * rob)
+{
+    /*  sub-class initialisations */
+    switch (in(rob)->type)
+    {
+    case RENT_SQUARE:
+    case RENT_SQUARE_CENTER:
+	in(rob)->typedata = calloc(1, sizeof(__square_t));
+	break;
+    case RENT_CANVAS:
+	in(rob)->typedata = calloc(1, sizeof(__canvas_t));
+	canvas(rob)->children = arraylistf_new();
+	canvas(rob)->draw_heap = heap_new(__cmp_robs_to_draw, NULL);
+	canvas(rob)->offload_heap = heap_new(__cmp_robs_to_draw, NULL);
+	canvas(rob)->vbo_map = hashmap_new(__ulong_hash, __ulong_compare);
+	break;
+    case RENT_SQUARE_VBO:
+	in(rob)->typedata = calloc(1, sizeof(__square_vbo_t));
+	break;
+    case RENT_BONE:
+	in(rob)->typedata = calloc(1, sizeof(__bone_t));
+	break;
+    default:
+	assert(false);
+	break;
+    }
+}
+
+/*----------------------------------------------------------------------------*/
+
+/**
+ * Get the VBO that corresponds to this texture.
+ * Initialise a VBO if needed.
+ * @return 0 = error; otherwise VBO ID
+ */
+static int __get_vbo_from_texture(unsigned long texture)
+{
+    unsigned long vbo;
+
+    assert(0 < texture);
+
+    /* look for the vbo */
+    vbo =
+	(unsigned long) (void *) hashmap_get(__vbosByTex,
+					     (void *) texture);
+
+    /* if there isn't a vbo for this texture, then create one */
+    if (0 == vbo)
+    {
+	vbo = ren_vbosquare_init(VBO_ELEM_SIZE);
+	hashmap_put(__vbosByTex, (void *) texture, (void *) vbo);
+    }
+
+    return vbo;
+}
+
+/*----------------------------------------------------------------------------*/
+
+/**
+ * @return VBO ID that object is on */
+static int __ren_obj_get_vbo(ren_object_t * rob)
+{
+    int tex, vbo;
+
+    switch (in(rob)->type)
+    {
+    case RENT_SQUARE:
+    case RENT_SQUARE_CENTER:
+    case RENT_BONE:
+	{
+	    int tex;
+
+	    tex = ren_media_get_texture(ren_obj_get_media(rob));
+
+	    return __get_vbo_from_texture(tex);
+	}
+	break;
+    default:
+	assert(false);
+	break;
+    }
+
+    return 0;
+}
+
+/*----------------------------------------------------------------------------*/
+
+
+/**
+ * Robject destructor */
+int ren_obj_release(ren_object_t * rob)
+{
+    void *removed;
+
+    removed = arraylistf_remove(__robj_list, in(rob)->id);
+
+    assert(rob == removed);
+
+    __obj_release_typedata(rob);
 
     free(rob->in);
     free(rob);
@@ -378,11 +435,14 @@ int ren_obj_set_media(ren_object_t * rob, const int media_id)
 	}
 	break;
     case RENT_RECT:
-	{
-	    __manage_vboslot_with_new_textures(&rect(rob)->vbo_slot,
-					       media_id, rect(rob)->media);
-	    rect(rob)->media = media_id;
-	}
+	__manage_vboslot_with_new_textures(&rect(rob)->vbo_slot,
+					   media_id, rect(rob)->media);
+	rect(rob)->media = media_id;
+	break;
+    case RENT_BONE:
+	__manage_vboslot_with_new_textures(&bone(rob)->vbo_slot,
+					   media_id, rect(rob)->media);
+	bone(rob)->media = media_id;
 	break;
     default:
 	assert(false);
@@ -407,6 +467,8 @@ int ren_obj_get_media(ren_object_t * rob)
 	return rect(rob)->media;
     case RENT_SQUARE_VBO:
 	return rect(rob)->media;
+    case RENT_BONE:
+	return bone(rob)->media;
     default:
 	assert(false);
 	return 0;
@@ -484,6 +546,8 @@ int ren_obj_set_zrot(ren_object_t * rob, float zrot)
 	    /* commit changes to vbo */
 	    ren_vbosquare_item_set_vertices(vbo, vbo_slot, verts, 4);
 	}
+	break;
+    case RENT_BONE:
 	break;
     default:
 	assert(false);
@@ -572,9 +636,33 @@ int ren_obj_set_org(ren_object_t * rob, vec2_t org)
 
 	    /* set texture coordinates */
 	    __media_texturecoords_2_gltexturecoords(media_id, verts);
-
 	    /* commit changes to vbo */
 	    ren_vbosquare_item_set_vertices(vbo, vbo_slot, verts, 4);
+	}
+	break;
+    case RENT_BONE:
+	{
+	    int vbo, vbo_slot, media_id;
+
+	    float w = (float) square(rob)->w;
+
+	    vec2Copy(org, in(rob)->org);
+
+	    media_id = square(rob)->media;
+	    vbo = __ren_obj_get_vbo(rob);
+	    vbo_slot = square(rob)->vbo_slot;
+
+	    ren_vertex_tc_t verts[4];
+
+	    vec2Set(verts[0].pos, org[0], org[1]);
+	    vec2Set(verts[1].pos, org[0] + w, org[1]);
+//          vec2Set(verts[2].pos, org[0] + w, org[1] + w);
+//          vec2Set(verts[3].pos, org[0], org[1] + w);
+
+	    /* set texture coordinates */
+	    __media_texturecoords_2_gltexturecoords(media_id, verts);
+	    /* commit changes to vbo */
+	    ren_vbosquare_item_set_vertices(vbo, vbo_slot, verts, 2);
 	}
 	break;
     default:
@@ -584,6 +672,89 @@ int ren_obj_set_org(ren_object_t * rob, vec2_t org)
 
     return 0;
 }
+
+static void __boneify_verts(const vec2_t a,
+			    const vec2_t b, ren_vertex_tc_t * o, float w)
+{
+    vec2_t normal;
+
+    vec2Subtract(a, b, normal);
+    vec2Normalize(normal);
+    vec2Perp(normal);
+    vec2MA(a, -w, normal, o[0].pos);
+    vec2MA(a, w, normal, o[1].pos);
+    vec2MA(b, w, normal, o[2].pos);
+    vec2MA(b, -w, normal, o[3].pos);
+}
+
+/**
+ * set end point of object
+ *
+ * */
+int ren_obj_set_endpos(ren_object_t * rob, vec2_t endpos)
+{
+    assert(rob);
+    assert(rob->in);
+    switch (in(rob)->type)
+    {
+    case RENT_SQUARE:
+    case RENT_SQUARE_CENTER:
+	{
+	    int vbo, vbo_slot, media_id;
+	    vec2_t org;
+
+	    float w;
+
+	    /* archive data */
+	    w = (float) square(rob)->w;
+	    media_id = square(rob)->media;
+	    vec2Copy(in(rob)->org, org);
+
+	    /* convert into bone object */
+	    /* free typedata - this is because we are re-allocating */
+	    __obj_release_typedata(rob);
+	    __obj_init_typedata(rob);
+	    in(rob)->type = RENT_BONE;
+
+	    /* use archive data */
+	    ren_obj_set_w(rob, w);
+	    ren_obj_set_media(rob, media_id);
+
+	    /* re-position */
+	    ren_obj_set_org(rob, org);
+	    ren_obj_set_endpos(rob, endpos);
+	}
+	break;
+
+    case RENT_BONE:
+	{
+	    ren_vertex_tc_t verts[4];
+
+	    vec2Copy(endpos, bone(rob)->endpos);
+
+	    /* make it like a bone */
+	    __boneify_verts(in(rob)->org, bone(rob)->endpos, verts,
+			    bone(rob)->w);
+
+	    /* set texture coordinates */
+	    __media_texturecoords_2_gltexturecoords(bone(rob)->media,
+						    verts);
+	    /* commit changes to vbo */
+	    ren_vbosquare_item_set_vertices(__ren_obj_get_vbo(rob),
+					    bone(rob)->vbo_slot, verts, 4);
+	}
+
+	break;
+
+    default:
+	assert(false);
+	break;
+    }
+
+    return 0;
+}
+
+
 
 /**
  * Set origin using X and Y variables
@@ -629,6 +800,9 @@ int ren_obj_set_w(ren_object_t * rob, const int w)
 	break;
     case RENT_RECT:
 	rect(rob)->w = w;
+	break;
+    case RENT_BONE:
+	bone(rob)->w = w;
 	break;
     default:
 	assert(false);
@@ -679,23 +853,6 @@ void ren_bone_set_dst(ren_object_t * rob, vec2_t dst)
 }
 
 /*----------------------------------------------------------------------------*/
-
-static unsigned long __ulong_hash(const void *e1)
-{
-    const long i1 = (unsigned long) e1;
-
-    assert(i1 >= 0);
-    return i1;
-}
-
-static long __ulong_compare(const void *e1, const void *e2)
-{
-    const long i1 = (unsigned long) e1, i2 = (unsigned long) e2;
-
-//      return !(*i1 == *i2); 
-    return i1 - i2;
-}
-
 #if 0
 static void
 show_info_log(GLuint object,
@@ -713,6 +870,8 @@ show_info_log(GLuint object,
 }
 #endif
 
+
+
 /**
  * Object constructor
  *
@@ -725,30 +884,11 @@ ren_object_t *ren_obj_init(const int type)
     /*  robject initialisations */
     rob = calloc(1, sizeof(ren_object_t));
     rob->in = calloc(1, sizeof(__obj_t));
+    /* add to internal registry */
     in(rob)->id = arraylistf_add(__robj_list, rob);
+    /* set type and load typedata */
     in(rob)->type = type;
-
-    /*  sub-class initialisations */
-    switch (type)
-    {
-    case RENT_SQUARE:
-    case RENT_SQUARE_CENTER:
-	in(rob)->typedata = calloc(1, sizeof(__square_t));
-	break;
-    case RENT_CANVAS:
-	in(rob)->typedata = calloc(1, sizeof(__canvas_t));
-	canvas(rob)->children = arraylistf_new();
-	canvas(rob)->draw_heap = heap_new(__cmp_robs_to_draw, NULL);
-	canvas(rob)->offload_heap = heap_new(__cmp_robs_to_draw, NULL);
-	canvas(rob)->vbo_map = hashmap_new(__ulong_hash, __ulong_compare);
-	break;
-    case RENT_SQUARE_VBO:
-	in(rob)->typedata = calloc(1, sizeof(__square_vbo_t));
-	break;
-    default:
-	assert(false);
-	break;
-    }
+    __obj_init_typedata(rob);
 
     return rob;
 }

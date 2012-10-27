@@ -205,3 +205,24 @@ void ren_mat4_print(ren_mat4_t mat)
 	printf("},\n");
     }
 }
+
+
+/** converts every dimension of this vector into a scale of -1 to 1
+ * @return length of vector */
+vec_t vec2Normalize(vec2_t v)
+{
+    float length, ilength;
+
+    length = v[0] * v[0] + v[1] * v[1];
+    length = sqrt(length);
+
+    if (length)
+    {
+        ilength = 1 / length;
+        v[0] *= ilength;
+        v[1] *= ilength;
+    }
+
+    return length;
+}
+

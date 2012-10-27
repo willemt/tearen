@@ -24,6 +24,7 @@ typedef veci_t veci3_t[3];
 
 typedef veci_t veci4_t[4];
 
+#define vec2Perp(a)             ({float swap; swap=(a)[0]; (a)[0] = (a)[1]; (a)[1] = -swap;})
 #define vec2X(a) 		((a)[0])
 #define vec2Y(a) 		((a)[1])
 #define vec2Copy(a,b) 		((b)[0] = (a)[0], (b)[1] = (a)[1])

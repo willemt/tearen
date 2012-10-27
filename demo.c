@@ -71,10 +71,13 @@ int main(int argc, char **argv)
 
 	SDL_PumpEvents();
 
-	SDL_GetMouseState(&mx, &my);
-	org[0] = mx;
-	org[1] = my;
+        vec2Set(org, 300, 100);
 	ren_obj_set_org(obs[0], org);
+	ren_obj_set_w(obs[0], 32);
+
+	SDL_GetMouseState(&mx, &my);
+        vec2Set(org, mx, my);
+	ren_obj_set_endpos(obs[0], org);
 
         for (ii=0; ii<10; ii++)
         {

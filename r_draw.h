@@ -27,6 +27,7 @@ typedef enum
     RENT_SQUARE,
     RENT_SQUARE_ROTATE,
     RENT_SQUARE_CENTER,         // center point is middle of rect
+    RENT_BONE,
 //      RENT_SQUARE_COLORED,
     RENT_RECT,
 //      RENT_RECT_CENTER, // center point is middle of rect
